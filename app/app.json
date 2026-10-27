@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Bubble Agent",
+    "slug": "bubble-agent",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": "bubbleagent",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F6F6F9"
+    },
+    "android": {
+      "package": "com.bubbleagent.app",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#F6F6F9"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      ["expo-build-properties", { "android": { "compileSdkVersion": 35 } }],
+      "expo-secure-store",
+      "expo-web-browser",
+      ["expo-local-authentication", { "faceIDPermission": "Confirm payments with Face ID." }],
+      "./plugins/withTranslucentActivity"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

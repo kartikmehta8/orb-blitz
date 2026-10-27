@@ -1,0 +1,18 @@
+packages:
+  - .
+
+# Expo SDK 53 autolinking expects a flat node_modules.
+nodeLinker: hoisted
+
+minimumReleaseAge: 10080
+
+# Native Node addons pulled in by web3 deps; not needed on React Native.
+strictDepBuilds: false
+onlyBuiltDependencies:
+  - unrs-resolver
+allowBuilds:
+  '@reown/appkit': set this to true or false
+  bufferutil: set this to true or false
+  keccak: set this to true or false
+  unrs-resolver: set this to true or false
+  utf-8-validate: set this to true or false
