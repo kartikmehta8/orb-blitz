@@ -1,5 +1,5 @@
 /**
- * @file Intent model and transfer preparation for Bubble Agent.
+ * @file Intent model and transfer preparation for Orb.
  *
  * SHARED FILE: byte-identical copies live at `app/src/intent.ts` and
  * `server/src/intent.ts`. Edit one, copy it to the other;

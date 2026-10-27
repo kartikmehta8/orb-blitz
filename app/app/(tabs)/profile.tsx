@@ -5,9 +5,11 @@
 import { Feather } from '@expo/vector-icons';
 import { usePrivy } from '@privy-io/expo';
 import Constants from 'expo-constants';
+import type { ReactNode } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Avatar } from '../../src/components/Avatar';
 import { LimitsCard } from '../../src/components/LimitsCard';
+import { NetworkPill } from '../../src/components/NetworkPill';
 import { Screen } from '../../src/components/Screen';
 import { Card, ListRow, SectionHeader, Text, type IconName } from '../../src/components/ui';
 import { useCopy } from '../../src/components/useCopy';
@@ -16,7 +18,7 @@ import { CHAIN_ID, shortAddress } from '../../src/intent';
 import { colors, HIT, radius, space } from '../../src/theme';
 import { useWalletData } from '../../src/walletData';
 
-type Row = { icon: IconName; title: string; subtitle?: string; onPress?: () => void; value?: string };
+type Row = { icon: IconName; title: string; subtitle?: string; onPress?: () => void; value?: string; badge?: ReactNode };
 
 const open = (url: string) => void Linking.openURL(url);
 
@@ -41,13 +43,14 @@ function Group({ title, rows }: { title: string; rows: Row[] }) {
             divider={i > 0}
             onPress={row.onPress}
             trailing={
-              row.value ? (
+              row.badge ??
+              (row.value ? (
                 <Text variant="mono" color="textSecondary">
                   {row.value}
                 </Text>
               ) : row.onPress ? (
                 <Feather name="external-link" size={16} color={colors.textTertiary} />
-              ) : undefined
+              ) : undefined)
             }
           />
         ))}
@@ -106,7 +109,7 @@ export default function ProfileScreen() {
       <Group
         title="Network"
         rows={[
-          { icon: 'globe', title: 'Monad Testnet', subtitle: 'The only network this app uses', value: `ID ${CHAIN_ID}` },
+          { icon: 'globe', title: 'Network', subtitle: `Chain ID ${CHAIN_ID}`, badge: <NetworkPill label="Monad Testnet" /> },
           {
             icon: 'search',
             title: 'Explorer',
@@ -129,7 +132,7 @@ export default function ProfileScreen() {
         title="About"
         rows={[
           { icon: 'info', title: 'Version', value: version },
-          { icon: 'eye', title: 'Privacy', subtitle: 'Your screen is read only when you tap the bubble' },
+          { icon: 'eye', title: 'Privacy', subtitle: 'Your screen is read only when you tap the orb' },
         ]}
       />
 

@@ -1,7 +1,7 @@
 /**
  * @file Root layout (spec §7.2): fonts (splash held until loaded), Privy with
- * the embedded EVM wallet on Monad testnet, bubble lifecycle, and a two-route
- * stack: the opaque `(tabs)` group (Wallet, Activity, Bubble, Profile, or the
+ * the embedded EVM wallet on Monad testnet, orb lifecycle, and a two-route
+ * stack: the opaque `(tabs)` group (Wallet, Activity, Orb, Profile, or the
  * sign-in flow while signed out) and the transparent `ask` sheet over other apps.
  *
  * Deep links: expo-router maps `bubbleagent://ask?ctx=...` to `/ask` on both
@@ -89,7 +89,7 @@ function ConfigMissing() {
         </View>
         <Text variant="headline">Almost there</Text>
         <Text variant="callout" color="textSecondary">
-          Bubble Agent needs your Privy app credentials. Add these to app/.env, then rebuild the app.
+          Orb needs your Privy app credentials. Add these to app/.env, then rebuild the app.
         </Text>
         <View style={styles.vars}>
           <Text variant="mono">EXPO_PUBLIC_PRIVY_APP_ID</Text>

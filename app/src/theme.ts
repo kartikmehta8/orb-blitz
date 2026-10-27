@@ -1,10 +1,9 @@
 /**
  * @file Design tokens: colors, type scale, spacing, radii and elevation.
  *
- * Follows the Monad brand kit (monad.xyz/brand-and-media-kit): primary purple
- * #6E54FF, lavender #DDD7FE, ink #0E091C on an off-white canvas; Inter for
- * text, Roboto Mono for labels, buttons and addresses. Britti Sans (Monad's
- * headline face) is commercial, so headlines use tightly tracked Inter.
+ * Built on the Monad brand palette (monad.xyz/brand-and-media-kit): purple
+ * #6E54FF, lavender #DDD7FE and ink #0E091C on an off-white canvas. Inter for
+ * all UI text; Roboto Mono only for addresses and hashes.
  *
  * Light mode only (product decision, see NOTES.md). Every screen and component
  * takes values from here; no hex codes or font names elsewhere.
@@ -75,10 +74,10 @@ export const type = {
   callout: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 19 },
   caption: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 17 },
   captionStrong: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 17 },
-  /** Monad-style mono label: section titles, pills, field labels. */
-  overline: { fontFamily: fonts.monoMedium, fontSize: 11, lineHeight: 14, letterSpacing: 0.9, textTransform: 'uppercase' },
-  /** Button text (mono, uppercase), per Monad's "labels, buttons, links" rule. */
-  button: { fontFamily: fonts.monoMedium, fontSize: 13, lineHeight: 16, letterSpacing: 0.8, textTransform: 'uppercase' },
+  /** Quiet label: section titles, pills, field labels. Sentence case. */
+  overline: { fontFamily: fonts.semibold, fontSize: 13, lineHeight: 18, letterSpacing: -0.1 },
+  /** Button text. Sentence case. */
+  button: { fontFamily: fonts.semibold, fontSize: 16, lineHeight: 20, letterSpacing: -0.2 },
   /** Amounts in rows and cards. */
   amount: { fontFamily: fonts.semibold, fontSize: 17, lineHeight: 22, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
   /** Addresses and hashes. */

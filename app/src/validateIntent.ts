@@ -52,7 +52,7 @@ const fail = (reason: string): IntentCheck => ({ ok: false, reason });
  * @returns ok, or the first failing reason.
  */
 export function validateIntent(intent: Intent, input: CheckInput): IntentCheck {
-  if (intent.chainId !== CHAIN_ID) return fail('Wrong network. Bubble Agent only sends on Monad testnet.');
+  if (intent.chainId !== CHAIN_ID) return fail('Wrong network. Orb only sends on Monad testnet.');
 
   const to = toChecksumAddress(intent.to);
   if (!to || to !== intent.to) return fail('That is not a valid 0x address.');

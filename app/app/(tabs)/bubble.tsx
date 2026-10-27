@@ -1,5 +1,5 @@
 /**
- * @file Bubble tab (spec §7.3 items 3 and 4): the floating bubble toggle, the
+ * @file Orb tab (spec §7.3 items 3 and 4): the floating orb toggle, the
  * permission checklist, a three-step "How it works" and the OEM autostart tip.
  * Permissions are re-read whenever the app returns to the foreground.
  */
@@ -11,17 +11,17 @@ import { Card, SectionHeader, Text } from '../../src/components/ui';
 import { usePermissions } from '../../src/permissions';
 import { colors, radius, space } from '../../src/theme';
 
-const STEPS = ['Open any app with a payment message', 'Tap the bubble', 'Review and confirm with your fingerprint'];
+const STEPS = ['Open any app with a payment message', 'Tap the orb', 'Review and confirm with your fingerprint'];
 const STEP_DOT = 28;
 
 /**
- * Bubble screen.
+ * Orb screen.
  * @returns Toggle, setup checklist, how-it-works steps and the OEM tip.
  */
 export default function BubbleScreen() {
   const permissions = usePermissions();
   return (
-    <Screen title="Bubble" subtitle="A floating button that turns what is on your screen into a payment.">
+    <Screen title="Orb" subtitle="Tap the orb in any app to pay from what is on screen.">
       <BubbleCard status={permissions.status} refresh={permissions.refresh} />
       <PermissionsCard status={permissions.status} refresh={permissions.refresh} />
       <View>

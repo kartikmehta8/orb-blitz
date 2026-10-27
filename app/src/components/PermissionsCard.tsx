@@ -1,5 +1,5 @@
 /**
- * @file Bubble tab "Setup" checklist (PLAN.md §7.3 item 3, edge cases 1, 3, 4, 5, 6).
+ * @file Orb tab "Setup" checklist (PLAN.md §7.3 item 3, edge cases 1, 3, 4, 5, 6).
  *
  * Progress header, one row per permission with a tinted icon and either a
  * green check or an Allow/Fix button, and a collapsible restricted-settings
@@ -30,8 +30,8 @@ const ROWS: RowSpec[] = [
     key: 'overlay',
     icon: 'layers',
     title: 'Display over other apps',
-    granted: 'The bubble can float over other apps',
-    missing: 'Required to show the bubble',
+    granted: 'The orb can float over other apps',
+    missing: 'Required to show the orb',
     required: true,
     action: 'Allow',
   },
@@ -39,8 +39,8 @@ const ROWS: RowSpec[] = [
     key: 'accessibility',
     icon: 'eye',
     title: 'Screen reader',
-    granted: 'Reads the screen only when you tap the bubble',
-    missing: 'Recommended. Without it, paste from your clipboard',
+    granted: 'Reads the screen only when you tap the orb',
+    missing: 'Recommended. Turn on Orb screen reader in Accessibility',
     required: false,
     action: 'Fix',
   },
@@ -48,8 +48,8 @@ const ROWS: RowSpec[] = [
     key: 'notifications',
     icon: 'bell',
     title: 'Notifications',
-    granted: "Shows the bubble's status notification",
-    missing: "Needed for the bubble's status notification",
+    granted: "Shows the orb's status notification",
+    missing: "Needed for the orb's status notification",
     required: false,
     action: 'Allow',
   },
@@ -57,8 +57,8 @@ const ROWS: RowSpec[] = [
     key: 'battery',
     icon: 'battery-charging',
     title: 'Battery optimization',
-    granted: 'Exempt, so the bubble keeps running',
-    missing: 'Recommended so your phone doesn’t stop the bubble',
+    granted: 'Exempt, so the orb keeps running',
+    missing: 'Recommended so your phone doesn’t stop the orb',
     required: false,
     action: 'Fix',
   },
@@ -138,7 +138,7 @@ export function PermissionsCard({ status, refresh }: { status: PermissionStatus 
             icon="smartphone"
             tone="neutral"
             title="Android build required"
-            subtitle="The bubble and its permissions need the Bubble Agent Android app, not Expo Go."
+            subtitle="The orb and its permissions need the Orb Android app, not Expo Go."
           />
         </Card>
       </View>
@@ -156,7 +156,7 @@ export function PermissionsCard({ status, refresh }: { status: PermissionStatus 
       icon="check-circle"
       tone="success"
       title="All set"
-      subtitle="The bubble has everything it needs"
+      subtitle="The orb has everything it needs"
       accessibilityLabel={expanded ? 'All set. Hide permissions' : 'All set. Show permissions'}
       onPress={() => setExpanded((e) => !e)}
       trailing={<Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />}

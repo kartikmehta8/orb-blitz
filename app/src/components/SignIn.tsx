@@ -1,31 +1,27 @@
 /**
  * @file Full-screen sign-in shown instead of the tabs while signed out
- * (spec §7.3 item 1). Two clear steps with a step indicator: 1. email,
- * 2. the 6-digit code (Privy email OTP), with a resend countdown and Privy's
- * error reason surfaced.
+ * (spec §7.3 item 1). Three calm views with a short fade-and-slide between
+ * them: welcome, email, then the 6-digit Privy email code (auto-submits, with
+ * a resend countdown and Privy's error reason surfaced). Hardware back steps
+ * back through the views.
  */
 import { Feather } from '@expo/vector-icons';
 import { useLoginWithEmail } from '@privy-io/expo';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ActivityIndicator, BackHandler, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, HIT, radius, space, type as typeScale } from '../theme';
-import { BrandMark } from './BrandMark';
-import { Button, Text, type IconName } from './ui';
+import { BrandMark, MonadMark } from './BrandMark';
+import { Button, Text } from './ui';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
-const STEPS = 2;
-/** Visual size of the back button; `hitSlop` pads it to a 48-pt target. */
-const BACK = 40;
+const TRANSITION_MS = 240;
 
-const VALUES: { icon: IconName; text: string }[] = [
-  { icon: 'message-circle', text: 'Tap the bubble in any app to pay an address on screen' },
-  { icon: 'shield', text: 'You approve every payment with your fingerprint or PIN' },
-  { icon: 'zap', text: 'Monad testnet only. No real funds.' },
-];
+type Step = 'welcome' | 'email' | 'code';
 
 /**
  * Appends Privy's reason to a sign-in error, so config problems (wrong client
@@ -46,8 +42,8 @@ function withCause(summary: string, e: unknown): string {
  */
 function FieldError({ text }: { text: string }) {
   return (
-    <View style={styles.error} accessibilityLiveRegion="polite">
-      <Feather name="alert-circle" size={13} color={colors.danger} style={styles.errorIcon} />
+    <View style={styles.inline} accessibilityLiveRegion="polite">
+      <Feather name="alert-circle" size={14} color={colors.danger} style={styles.inlineIcon} />
       <Text variant="caption" color="danger" style={styles.flex}>
         {text}
       </Text>
@@ -56,21 +52,38 @@ function FieldError({ text }: { text: string }) {
 }
 
 /**
- * "Step N of 2" label over a two-segment bar.
- * @param props.step Current step, 1-based.
- * @returns The indicator, announced as one element.
+ * Top-left back chevron with a 48-pt target, aligned to the text gutter.
+ * @param props.onPress Goes to the previous view.
+ * @returns The button.
  */
-function StepIndicator({ step }: { step: number }) {
+function BackButton({ onPress }: { onPress: () => void }) {
   return (
-    <View style={styles.steps} accessible accessibilityLabel={`Step ${step} of ${STEPS}`}>
-      <Text variant="overline" color="primary">
-        Step {step} of {STEPS}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Back"
+      onPress={onPress}
+      style={({ pressed }) => [styles.back, pressed && styles.backPressed]}
+    >
+      <Feather name="chevron-left" size={26} color={colors.text} />
+    </Pressable>
+  );
+}
+
+/**
+ * Title and one supporting line at the top of the email and code views.
+ * @param props.title Screen title, announced as a header.
+ * @param props.children Subtitle content.
+ * @returns The heading block.
+ */
+function Heading({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <View style={styles.heading}>
+      <Text variant="title" accessibilityRole="header">
+        {title}
       </Text>
-      <View style={styles.segments}>
-        {Array.from({ length: STEPS }, (_, i) => (
-          <View key={i} style={[styles.segment, i < step && styles.segmentDone]} />
-        ))}
-      </View>
+      <Text variant="body" color="textSecondary">
+        {children}
+      </Text>
     </View>
   );
 }
@@ -94,7 +107,7 @@ function CodeBoxes({ value, onChange, invalid }: { value: string; onChange: (v: 
             key={i}
             importantForAccessibility="no-hide-descendants"
             accessibilityElementsHidden
-            style={[styles.box, active && styles.boxActive, invalid && styles.boxError]}
+            style={[styles.box, value[i] ? styles.boxFilled : null, active && styles.boxActive, invalid && styles.boxError]}
           >
             <Text variant="title" style={styles.digit}>
               {value[i] ?? ''}
@@ -121,26 +134,74 @@ function CodeBoxes({ value, onChange, invalid }: { value: string; onChange: (v: 
 }
 
 /**
- * Signed-out screen: brand bar, step indicator, then the email or code step.
+ * Tracks the on-screen keyboard height. Used instead of KeyboardAvoidingView,
+ * which keeps stale bottom padding after the keyboard hides on Android
+ * edge-to-edge (the welcome view ended up shifted up).
+ * @returns Keyboard height in dp, 0 while hidden.
+ */
+function useKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return height;
+}
+
+/**
+ * Signed-out screen: welcome, email and code views.
  * @returns The full-screen sign-in flow.
  */
 export function SignIn() {
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight();
   const { sendCode, loginWithCode, state } = useLoginWithEmail();
+  const [view, setView] = useState<Step>('welcome');
+  /** 1 slides the next view in from the right, -1 from the left, 0 just fades (first render). */
+  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
   const [email, setEmail] = useState('');
+  const [emailFocused, setEmailFocused] = useState(false);
   const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const sending = state.status === 'sending-code';
   const verifying = state.status === 'submitting-code';
-  const onCodeStep = step === 'code';
+  const emailValid = EMAIL.test(email.trim());
 
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [cooldown]);
+
+  const go = (next: Step, dir: -1 | 1) => {
+    setDirection(dir);
+    setView(next);
+    setError(null);
+  };
+
+  const back = () => {
+    if (view === 'code') {
+      setCode('');
+      go('email', -1);
+    } else if (view === 'email') {
+      go('welcome', -1);
+    }
+  };
+
+  // Android back steps through the views instead of leaving the app.
+  useEffect(() => {
+    if (view === 'welcome') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      back();
+      return true;
+    });
+    return () => sub.remove();
+  });
 
   const requestCode = async () => {
     const address = email.trim();
@@ -151,16 +212,15 @@ export function SignIn() {
     setError(null);
     try {
       await sendCode({ email: address });
-      setStep('code');
       setCode('');
       setCooldown(RESEND_SECONDS);
+      if (view !== 'code') go('code', 1);
     } catch (e) {
       setError(withCause("Couldn't send the code.", e));
     }
   };
 
   const submitCode = async (value: string) => {
-    if (value.length !== CODE_LENGTH) return;
     setError(null);
     try {
       await loginWithCode({ code: value, email: email.trim() });
@@ -178,176 +238,165 @@ export function SignIn() {
     if (digits.length === CODE_LENGTH) void submitCode(digits);
   };
 
-  const backToEmail = () => {
-    setStep('email');
-    setCode('');
-    setError(null);
-  };
+  let content: ReactNode;
+  if (view === 'welcome') {
+    content = (
+      <>
+        <View style={styles.hero}>
+          <BrandMark size={72} />
+          <View style={styles.heroText}>
+            <Text variant="display" accessibilityRole="header" align="center">
+              Orb
+            </Text>
+            <Text variant="body" color="textSecondary" align="center">
+              Pay anyone on your screen.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.footer}>
+          <Button label="Continue with email" onPress={() => go('email', 1)} />
+          <View style={styles.builtOn} accessible accessibilityLabel="Built on Monad">
+            <Text variant="caption" color="textTertiary">
+              Built on
+            </Text>
+            <MonadMark size={12} color={colors.textSecondary} />
+            <Text variant="captionStrong" color="textSecondary">
+              Monad
+            </Text>
+          </View>
+        </View>
+      </>
+    );
+  } else if (view === 'email') {
+    content = (
+      <>
+        <BackButton onPress={back} />
+        <Heading title="What's your email?">{"We'll send you a code to sign in."}</Heading>
+        <TextInput
+          value={email}
+          onChangeText={(text) => {
+            setEmail(text);
+            if (error) setError(null);
+          }}
+          onFocus={() => setEmailFocused(true)}
+          onBlur={() => setEmailFocused(false)}
+          placeholder="name@example.com"
+          placeholderTextColor={colors.textTertiary}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="emailAddress"
+          autoFocus
+          returnKeyType="go"
+          onSubmitEditing={() => void requestCode()}
+          accessibilityLabel="Email address"
+          style={[styles.field, emailFocused && styles.fieldFocused, error ? styles.fieldError : null]}
+        />
+        {error ? <FieldError text={error} /> : null}
+        <Button label="Continue" loading={sending} disabled={!emailValid} onPress={() => void requestCode()} style={styles.pinned} />
+      </>
+    );
+  } else {
+    content = (
+      <>
+        <BackButton onPress={back} />
+        <Heading title="Enter the code">
+          Sent to{' '}
+          <Text variant="bodyStrong" color="text">
+            {email.trim()}
+          </Text>
+        </Heading>
+        <CodeBoxes value={code} onChange={onCodeChange} invalid={!!error} />
+        {error ? <FieldError text={error} /> : null}
+        {verifying ? (
+          <View style={styles.inline} accessibilityLiveRegion="polite">
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text variant="caption" color="textSecondary">
+              Signing in…
+            </Text>
+          </View>
+        ) : null}
+        <Button
+          size="sm"
+          variant="ghost"
+          label={cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+          disabled={cooldown > 0 || sending || verifying}
+          onPress={() => void requestCode()}
+          style={styles.resend}
+        />
+      </>
+    );
+  }
+
+  const entering = (direction === 0 ? FadeIn : direction > 0 ? FadeInRight : FadeInLeft).duration(TRANSITION_MS);
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={styles.screen}>
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + space.md, paddingBottom: insets.bottom + space.xxl }]}
-        keyboardShouldPersistTaps="handled"
+    <View style={styles.screen}>
+      <Animated.View
+        key={view}
+        entering={entering}
+        // Edge-to-edge Android reports the keyboard height without the nav-bar inset beneath it, so both pad the bottom.
+        style={[styles.page, { paddingTop: insets.top + space.sm, paddingBottom: keyboard + insets.bottom + space.lg }]}
       >
-        <View style={styles.brand}>
-          {onCodeStep ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Back to email"
-              onPress={backToEmail}
-              hitSlop={(HIT - BACK) / 2}
-              style={({ pressed }) => [styles.back, pressed && styles.backPressed]}
-            >
-              <Feather name="arrow-left" size={20} color={colors.text} />
-            </Pressable>
-          ) : null}
-          <BrandMark size={28} />
-          <Text variant="headline">Bubble Agent</Text>
-        </View>
-
-        <View style={styles.form}>
-          <StepIndicator step={onCodeStep ? 2 : 1} />
-          <View style={styles.head}>
-            <Text variant="title" accessibilityRole="header">
-              {onCodeStep ? 'Enter the code' : 'Sign in with email'}
-            </Text>
-            {onCodeStep ? (
-              <Text variant="body" color="textSecondary">
-                Sent to{' '}
-                <Text variant="bodyStrong" color="text">
-                  {email.trim()}
-                </Text>
-              </Text>
-            ) : (
-              <Text variant="body" color="textSecondary">
-                {"We'll send a 6-digit code. Your wallet is created automatically on first sign in."}
-              </Text>
-            )}
-          </View>
-
-          {onCodeStep ? (
-            <>
-              <CodeBoxes value={code} onChange={onCodeChange} invalid={!!error} />
-              {error ? <FieldError text={error} /> : null}
-              <Button label="Verify" loading={verifying} disabled={code.length !== CODE_LENGTH} onPress={() => void submitCode(code)} />
-              <View style={styles.links}>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  label={cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
-                  disabled={cooldown > 0 || sending}
-                  onPress={() => void requestCode()}
-                />
-                <Button size="sm" variant="ghost" label="Use a different email" onPress={backToEmail} />
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.fieldGroup}>
-                <Text variant="captionStrong" color="textSecondary">
-                  Email
-                </Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  placeholderTextColor={colors.textTertiary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                  textContentType="emailAddress"
-                  returnKeyType="send"
-                  onSubmitEditing={() => void requestCode()}
-                  accessibilityLabel="Email address"
-                  style={[styles.field, error ? styles.fieldError : null]}
-                />
-              </View>
-              {error ? <FieldError text={error} /> : null}
-              <Button label="Continue" loading={sending} disabled={!email.trim()} onPress={() => void requestCode()} />
-            </>
-          )}
-        </View>
-
-        {onCodeStep ? null : (
-          <View style={styles.values}>
-            {VALUES.map((v) => (
-              <View key={v.icon} style={styles.value}>
-                <Feather name={v.icon} size={16} color={colors.primary} />
-                <Text variant="caption" color="textSecondary" style={styles.flex}>
-                  {v.text}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+        {content}
+      </Animated.View>
+    </View>
   );
 }
 
-const BOX_HEIGHT = 56;
+const BOX_HEIGHT = 60;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
-  content: { flexGrow: 1, paddingHorizontal: space.xl, gap: space.xxxl },
+  page: { flex: 1, paddingHorizontal: space.xl, gap: space.xl },
   flex: { flex: 1 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: HIT },
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xxl },
+  heroText: { alignItems: 'center', gap: space.sm },
+  footer: { gap: space.lg },
+  builtOn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs + 1 },
   back: {
-    width: BACK,
-    height: BACK,
+    width: HIT,
+    height: HIT,
+    marginLeft: -space.md,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-    marginRight: space.xs,
   },
-  backPressed: { backgroundColor: colors.border },
-  form: { gap: space.xl },
-  steps: { gap: space.sm },
-  segments: { flexDirection: 'row', gap: space.xs },
-  segment: { flex: 1, height: 4, borderRadius: radius.pill, backgroundColor: colors.border },
-  segmentDone: { backgroundColor: colors.primary },
-  head: { gap: space.sm },
-  fieldGroup: { gap: space.sm },
+  backPressed: { backgroundColor: colors.surfaceMuted },
+  heading: { gap: space.sm },
   field: {
-    ...typeScale.body,
-    minHeight: HIT + space.xs,
+    ...typeScale.headline,
+    fontFamily: fonts.regular,
+    minHeight: HIT + space.sm,
     paddingHorizontal: space.lg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
     color: colors.text,
   },
+  fieldFocused: { borderColor: colors.primary },
   fieldError: { borderColor: colors.danger },
-  error: { flexDirection: 'row', gap: space.sm },
-  errorIcon: { marginTop: space.xxs },
+  pinned: { marginTop: 'auto' },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: -space.sm },
+  inlineIcon: { alignSelf: 'flex-start', marginTop: space.xxs },
   boxes: { flexDirection: 'row', gap: space.sm },
   box: {
     flex: 1,
     height: BOX_HEIGHT,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxActive: { borderColor: colors.primary, borderWidth: 2 },
+  boxFilled: { borderColor: colors.borderStrong },
+  boxActive: { borderColor: colors.primary, borderWidth: 1.5 },
   boxError: { borderColor: colors.danger },
-  digit: { fontFamily: fonts.monoMedium, fontVariant: ['tabular-nums'] },
+  digit: { fontVariant: ['tabular-nums'] },
   // Covers the boxes so taps, paste and autofill reach the real input; invisible.
   hiddenInput: { ...StyleSheet.absoluteFillObject, opacity: 0, color: 'transparent' },
-  links: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: space.sm },
-  values: {
-    marginTop: 'auto',
-    gap: space.md,
-    paddingTop: space.xl,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  value: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  resend: { alignSelf: 'flex-start', marginLeft: -space.md },
 });

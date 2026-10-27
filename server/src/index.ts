@@ -127,7 +127,7 @@ function main(): void {
     createMessage: apiKey ? anthropicCreateMessage(new Anthropic({ apiKey, maxRetries: 1 })) : null,
   });
   const port = Number(env.PORT) || 8787;
-  serve({ fetch: app.fetch, port }, () => console.log(`Bubble Agent server on :${port} (model ${model}, chain ${CHAIN_ID})`));
+  serve({ fetch: app.fetch, port }, () => console.log(`Orb agent server on :${port} (model ${model}, chain ${CHAIN_ID})`));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

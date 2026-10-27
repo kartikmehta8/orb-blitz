@@ -1,6 +1,6 @@
-# Bubble Agent server
+# Orb agent server
 
-Agent backend for the Bubble Agent Android app. It holds the LLM key, runs a Claude tool loop and returns
+Agent backend for the Orb Android app. It holds the LLM key, runs a Claude tool loop and returns
 **proposed** native MON transfers (intents) on Monad testnet (chain 10143). It never holds user keys and
 never signs or sends.
 

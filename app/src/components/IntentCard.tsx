@@ -159,7 +159,7 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
               ) : null}
             </ReasonRow>
           ) : null}
-          {walletStatus === 'error' ? <ReasonRow text="Your wallet isn't ready. Close and reopen Bubble Agent." /> : null}
+          {walletStatus === 'error' ? <ReasonRow text="Your wallet isn't ready. Close and reopen Orb." /> : null}
           {state.status === 'cancelled' ? (
             <Text variant="caption" color="textSecondary" align="center" accessibilityLiveRegion="polite">
               Not confirmed. You can try again.

@@ -1,5 +1,5 @@
 /**
- * @file Ask sheet (spec §7.4): opened by the bubble via `bubbleagent://ask?ctx=<id>`
+ * @file Ask sheet (spec §7.4): opened by the orb via `bubbleagent://ask?ctx=<id>`
  * over whatever app the user was in (the activity is translucent).
  *
  * On mount it consumes the screen context once, gates on the Privy session and
@@ -34,8 +34,9 @@ import { BrandMark } from '../src/components/BrandMark';
 import { ContextChip, type CapturedContext, type ContextState } from '../src/components/ContextChip';
 import { IntentCard } from '../src/components/IntentCard';
 import { MessageBubble, NoticeRow, TypingIndicator } from '../src/components/MessageBubble';
+import { NetworkPill } from '../src/components/NetworkPill';
 import { SuggestionChip } from '../src/components/SuggestionChip';
-import { Button, Pill, Text, type IconName } from '../src/components/ui';
+import { Button, Text, type IconName } from '../src/components/ui';
 import { chipLabel } from '../src/fallbackParser';
 import { usePendingTx, useWallet } from '../src/hooks';
 import type { Intent } from '../src/intent';
@@ -272,13 +273,13 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
         <BrandMark size={56} />
         <View style={styles.gateText}>
           <Text variant="title" align="center">
-            Sign in to Bubble Agent first.
+            Sign in to Orb first.
           </Text>
           <Text variant="callout" color="textSecondary" align="center">
-            Sign in once with your email, then tap the bubble from any app.
+            Sign in once with your email, then tap the orb in any app.
           </Text>
         </View>
-        <Button label="Open Bubble Agent" icon="arrow-right" onPress={() => router.replace('/')} style={styles.gateButton} />
+        <Button label="Open Orb" icon="arrow-right" onPress={() => router.replace('/')} style={styles.gateButton} />
       </View>
     );
   } else {
@@ -356,7 +357,7 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
             maxLength={MAX_INPUT_CHARS}
             returnKeyType="send"
             onSubmitEditing={() => void send(input)}
-            accessibilityLabel="Message to Bubble Agent"
+            accessibilityLabel="Message to Orb"
             style={styles.input}
           />
           <Pressable
@@ -377,7 +378,7 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
   return (
     <View style={styles.root}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, { opacity: progress }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} accessibilityRole="button" accessibilityLabel="Close Bubble Agent" />
+        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} accessibilityRole="button" accessibilityLabel="Close Orb" />
       </Animated.View>
       <KeyboardAvoidingView behavior="padding" style={styles.kav} pointerEvents="box-none">
         <Animated.View
@@ -395,9 +396,9 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
           <View style={styles.header}>
             <BrandMark size={28} />
             <Text variant="headline" accessibilityRole="header">
-              Bubble Agent
+              Orb
             </Text>
-            <Pill label="Testnet" tone="primary" />
+            <NetworkPill />
             <View style={styles.flex} />
             <Pressable
               accessibilityRole="button"

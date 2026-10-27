@@ -101,7 +101,7 @@ export function ActivityList({
           No payments yet
         </Text>
         <Text variant="callout" color="textSecondary" align="center">
-          Payments you confirm from the bubble show up here.
+          Payments you confirm from the orb show up here.
         </Text>
         {emptyAction ? (
           <Button size="sm" variant="secondary" label={emptyAction.label} onPress={emptyAction.onPress} style={styles.emptyAction} />

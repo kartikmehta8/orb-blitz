@@ -9,16 +9,16 @@ import { useWalletData } from '../../src/walletData';
 
 /**
  * Activity screen.
- * @returns The full payment list, or an empty state that points to the Bubble tab.
+ * @returns The full payment list, or an empty state that points to the Orb tab.
  */
 export default function ActivityScreen() {
   const { activity, pending, refresh } = useWalletData();
   return (
-    <Screen title="Activity" subtitle="Payments from this phone. Tap one to view it on the explorer." onRefresh={refresh}>
+    <Screen title="Activity" onRefresh={refresh}>
       <ActivityList
         items={activity}
         pending={pending}
-        emptyAction={{ label: 'Set up the bubble', onPress: () => router.navigate('/bubble') }}
+        emptyAction={{ label: 'Set up the orb', onPress: () => router.navigate('/bubble') }}
       />
     </Screen>
   );

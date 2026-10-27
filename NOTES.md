@@ -3,6 +3,8 @@
 One line each, with the reason.
 
 ## Product
+- **Product renamed to Orb** (the floating bubble is "the orb"), and the system prompt's first line says Orb. The package `com.bubbleagent.app`, the scheme `bubbleagent://` and native class names are unchanged, because Privy's allowed identifier and the service wiring depend on them.
+- **Bottom-tab layout** (Wallet, Activity, Orb, Profile) instead of one Home screen. The owner asked for a MetaMask or Phantom style layout.
 - **Light mode only** (`userInterfaceStyle: light`), replacing edge case 41: the owner asked for a single, polished light theme.
 - **Phase 8 (`BubbleReceipts` contract) not built**: it's optional, and deploying it needs a funded deployer key and Foundry on the day.
 - **Live-model injection check (§12.1) not run yet**: no Anthropic key was available while building. The mocked-model test passes. Run it once with a real key and record the result here.

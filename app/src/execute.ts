@@ -148,7 +148,7 @@ export function useIntentExecution(
   }, [address]);
 
   const runCheck = useCallback(async (): Promise<CardCheck> => {
-    if (!address) return { ok: false, reason: 'Sign in to Bubble Agent first.' };
+    if (!address) return { ok: false, reason: 'Sign in to Orb first.' };
     try {
       const [balance, limits, executed, pending] = await Promise.all([
         publicClient.getBalance({ address }),

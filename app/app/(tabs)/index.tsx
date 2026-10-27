@@ -1,6 +1,6 @@
 /**
- * @file Wallet tab (spec §7.3 items 1, 2 and 6): brand header with the
- * testnet badge and a profile shortcut, the balance card with quick actions,
+ * @file Wallet tab (spec §7.3 items 1, 2 and 6): minimal header (Orb mark and
+ * wordmark, network badge, profile shortcut), the balance card with quick actions,
  * the pending-payment banner and the three latest payments. Pull to refresh.
  */
 import { router } from 'expo-router';
@@ -10,8 +10,9 @@ import { Avatar } from '../../src/components/Avatar';
 import { BalanceCard } from '../../src/components/BalanceCard';
 import { PendingBanner } from '../../src/components/Banner';
 import { BrandMark } from '../../src/components/BrandMark';
+import { NetworkPill } from '../../src/components/NetworkPill';
 import { Screen } from '../../src/components/Screen';
-import { Pill, SectionHeader, Text } from '../../src/components/ui';
+import { SectionHeader, Text } from '../../src/components/ui';
 import { HIT, space } from '../../src/theme';
 import { useWalletData } from '../../src/walletData';
 
@@ -30,9 +31,9 @@ export default function WalletScreen() {
     <View style={styles.header}>
       <BrandMark size={28} />
       <Text variant="headline" accessibilityRole="header" style={styles.flex}>
-        Bubble Agent
+        Orb
       </Text>
-      <Pill label="Testnet" tone="primary" dot />
+      <NetworkPill />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open profile"

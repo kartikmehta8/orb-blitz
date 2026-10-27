@@ -5,7 +5,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AgentRequest } from './schemas';
 
-export const SYSTEM_PROMPT = `You are Bubble Agent, a payments assistant running in a floating bubble on the user's Android phone.
+export const SYSTEM_PROMPT = `You are Orb, a payments assistant running in a floating orb on the user's Android phone.
 You act ONLY on Monad testnet (chain 10143) and ONLY with native MON.
 
 Inputs:

@@ -1,5 +1,5 @@
 /**
- * @file Bubble tab main card: on/off toggle for the floating bubble
+ * @file Orb tab main card: on/off toggle for the floating orb
  * (PLAN.md §7.3 item 4, edge case 1).
  *
  * Persists the user's choice with `setBubbleEnabled`, and is disabled with an
@@ -16,7 +16,7 @@ import { colors, radius, space } from '../theme';
 import { BrandMark } from './BrandMark';
 import { Button, Card, StatusDot, Text, Toggle, type IconName } from './ui';
 
-const NO_OVERLAY_MESSAGE = 'Allow "Display over other apps" to turn on the bubble.';
+const NO_OVERLAY_MESSAGE = 'Allow "Display over other apps" to turn on the orb.';
 
 const TIPS: { icon: IconName; label: string }[] = [
   { icon: 'mouse-pointer', label: 'Tap to ask' },
@@ -25,7 +25,7 @@ const TIPS: { icon: IconName; label: string }[] = [
 ];
 
 /**
- * Bubble on/off card.
+ * Orb on/off card.
  * @param props.status Permission snapshot (includes whether the service runs); null while loading.
  * @param props.refresh Re-reads the snapshot.
  * @returns The card, or null when the native module is unavailable or status is loading.
@@ -57,7 +57,7 @@ export function BubbleCard({ status, refresh }: { status: PermissionStatus | nul
       await setBubbleEnabled(true);
     } catch (e) {
       const noPermission = (e as { code?: string }).code === 'E_NO_OVERLAY_PERMISSION';
-      setError(noPermission ? NO_OVERLAY_MESSAGE : 'Couldn’t start the bubble. Try again.');
+      setError(noPermission ? NO_OVERLAY_MESSAGE : 'Couldn’t start the orb. Try again.');
       refresh();
     }
   };
@@ -71,15 +71,15 @@ export function BubbleCard({ status, refresh }: { status: PermissionStatus | nul
           <BrandMark size={32} />
         </View>
         <View style={styles.text}>
-          <Text variant="bodyStrong">Floating bubble</Text>
+          <Text variant="bodyStrong">Floating orb</Text>
           <View style={styles.status}>
             {running ? <StatusDot tone="success" /> : null}
             <Text variant="caption" color={running ? 'success' : 'textSecondary'}>
-              {running ? 'Active over other apps' : 'Off'}
+              {running ? 'Orb is active over other apps' : 'Off'}
             </Text>
           </View>
         </View>
-        <Toggle value={running} onValueChange={(on) => void toggle(on)} label="Floating bubble" disabled={blocked} />
+        <Toggle value={running} onValueChange={(on) => void toggle(on)} label="Floating orb" disabled={blocked} />
       </View>
 
       {blocked ? (

@@ -48,7 +48,7 @@ export function ContextChip({ state, excluded, onExcludedChange, onUseClipboard,
         ? `${state.appLabel} doesn't expose its text. Copy the details and tap "Use clipboard".`
         : state.accessibilityOn
           ? 'Copy the details and tap "Use clipboard".'
-          : "Turn on screen reading to let me see what you're looking at, or use your clipboard.";
+          : 'Turn on Orb screen reader in Accessibility settings so I can see your screen, or use your clipboard.';
     return (
       <View style={[styles.box, styles.muted]}>
         <View style={styles.head}>

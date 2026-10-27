@@ -1,5 +1,5 @@
 /**
- * @file Signed-in app shell: four bottom tabs (Wallet, Activity, Bubble,
+ * @file Signed-in app shell: four bottom tabs (Wallet, Activity, Orb,
  * Profile) sharing one `WalletDataProvider`. Signed out, the full-screen
  * sign-in flow renders instead, with no tab bar. Screens draw their own
  * headers, so navigator headers are off.
@@ -16,7 +16,7 @@ import { WalletDataProvider } from '../../src/walletData';
 const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: 'index', title: 'Wallet', icon: 'credit-card' },
   { name: 'activity', title: 'Activity', icon: 'clock' },
-  { name: 'bubble', title: 'Bubble', icon: 'message-circle' },
+  { name: 'bubble', title: 'Orb', icon: 'circle' },
   { name: 'profile', title: 'Profile', icon: 'user' },
 ];
 

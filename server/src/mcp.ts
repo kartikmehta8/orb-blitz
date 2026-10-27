@@ -71,7 +71,7 @@ const transferInput = prepareNativeTransfer.input.extend({
 server.registerTool(
   prepareNativeTransfer.name,
   {
-    description: `${prepareNativeTransfer.description} Returns intent JSON for the Bubble Agent phone app to confirm; it never signs.`,
+    description: `${prepareNativeTransfer.description} Returns intent JSON for the Orb phone app to confirm; it never signs.`,
     inputSchema: transferInput,
   },
   async ({ context, ...input }) => {

@@ -1,11 +1,11 @@
-# Bubble Agent
+# Orb
 
-**Pay anyone you see on your screen.** A floating bubble sits over every Android app. Tap it in WhatsApp, X or Telegram, say "pay this", confirm with your fingerprint, and the MON settles on Monad testnet in about a second. You never leave the app you were in.
+**Pay anyone you see on your screen.** A floating orb sits over every Android app. Tap it in WhatsApp, X or Telegram, say "pay this", confirm with your fingerprint, and the MON settles on Monad testnet in about a second. You never leave the app you were in.
 
 ```
 ┌──────────────────────────── Android phone ─────────────────────────────┐
 │  Any app (WhatsApp, X…)          BubbleService (foreground service)    │
-│        ▲                         └─ overlay window: draggable bubble   │
+│        ▲                         └─ overlay window: draggable orb      │
 │        │ reads visible text            │ tap                           │
 │  ScreenReaderService ◄─captureNow()────┘                               │
 │        │ ScreenContextStore (120 s)     │ bubbleagent://ask?ctx=<id>   │
@@ -72,19 +72,19 @@ pnpm android:release
 1. **Home → sign in** with your email and the 6-digit code. The wallet address and balance appear. Tap **Get testnet MON** to fund it.
 2. **Permissions:** tap each **Fix** button:
    - Display over other apps (required)
-   - Accessibility → "Bubble Agent screen reader"
+   - Accessibility → "Orb screen reader"
    - Notifications
    - Battery
-3. **Bubble → Start.** Leave the app; the bubble appears on the right edge.
-4. In WhatsApp, Keep or any notes app, show the text `dinner was 0.2 MON, send to 0x<teammate address>`. Tap the bubble.
+3. **Orb tab → turn the orb on.** Leave the app; the orb appears on the right edge.
+4. In WhatsApp, Keep or any notes app, show the text `dinner was 0.2 MON, send to 0x<teammate address>`. Tap the orb.
 5. The sheet opens with the app still visible behind it and **Reading: WhatsApp · N chars**. Tap **Pay this**, check the card, tap **Confirm**, and pass the biometric prompt. The card shows **Confirmed in N ms** with an explorer link.
-6. Close the sheet. You're back in the app and the bubble reappears.
+6. Close the sheet. You're back in the app and the orb reappears.
 
 More checks:
 - "My balance", or "What is this address?" with an address on screen.
 - Two addresses on screen gives chips to choose from.
 - Stop the server and repeat "pay this": "Agent offline. Using basic parser." still produces a card.
-- Long-press the bubble to stop it.
+- Long-press the orb to stop it.
 
 The full device checklist is in `PLAN.md` §12.3.
 
@@ -92,10 +92,10 @@ The full device checklist is in `PLAN.md` §12.3.
 
 | Permission | Why |
 |---|---|
-| Display over other apps | Draws the bubble. Required. |
-| Accessibility ("Bubble Agent screen reader") | Reads visible text **only at the moment you tap the bubble**. Without it, use the clipboard. |
-| Notifications (Android 13+) | The foreground-service notification that keeps the bubble alive. |
-| Battery optimisation exemption | Stops the OS from killing the bubble. |
+| Display over other apps | Draws the orb. Required. |
+| Accessibility ("Orb screen reader") | Reads visible text **only at the moment you tap the orb**. Without it, use the clipboard. |
+| Notifications (Android 13+) | The foreground-service notification that keeps the orb alive. |
+| Battery optimisation exemption | Stops the OS from killing the orb. |
 
 - **Restricted settings (Android 13+):** if you sideloaded the APK from a browser or file manager, enable accessibility via App info → ⋮ → **Allow restricted settings**. `adb install` and `expo run:android` aren't affected.
 - **Xiaomi / Redmi / POCO / Realme / Oppo / Vivo:** enable **Autostart** and **Display pop-up windows while running in background** in App info → Other permissions.

@@ -67,8 +67,8 @@ const BUTTON_TONES: Record<ButtonVariant, { bg: string; pressed: string; fg: Col
 };
 
 /**
- * Button with a Monad-style mono uppercase label, variants, optional leading
- * icon and a loading state. Disabled and loading both block presses and are
+ * Pill button with a sentence-case label, variants, optional leading icon
+ * and a loading state. Disabled and loading both block presses and are
  * announced to screen readers.
  * @param props.label Visible and accessible label.
  * @returns A pressable button.
@@ -117,7 +117,7 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 }
 
 /**
- * Small rounded label in mono caps, e.g. the "Monad Testnet" badge.
+ * Small rounded label, e.g. the "Monad Testnet" badge.
  * @param props.label Text.
  * @param props.tone Color tone.
  * @param props.dot Show a leading status dot.
@@ -216,7 +216,7 @@ export function ListRow({ title, subtitle, icon, tone, trailing, onPress, divide
 }
 
 /**
- * Section title in Monad mono caps, with optional right-aligned meta text or action.
+ * Section title with optional right-aligned meta text or action.
  * @param props.title Section name.
  * @param props.meta Muted text on the right (e.g. "3 of 4 ready").
  * @param props.action Text button on the right.
@@ -233,17 +233,17 @@ export function SectionHeader({
 }) {
   return (
     <View style={styles.section}>
-      <Text variant="overline" color="textTertiary" accessibilityRole="header">
+      <Text variant="headline" accessibilityRole="header">
         {title}
       </Text>
       {action ? (
         <Pressable accessibilityRole="button" hitSlop={12} onPress={action.onPress}>
-          <Text variant="overline" color="primary">
+          <Text variant="captionStrong" color="primary">
             {action.label}
           </Text>
         </Pressable>
       ) : meta ? (
-        <Text variant="overline" color="textTertiary">
+        <Text variant="caption" color="textTertiary">
           {meta}
         </Text>
       ) : null}
@@ -302,15 +302,15 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 52,
     paddingHorizontal: space.xl,
-    borderRadius: radius.md + 2,
+    borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
   },
-  buttonSm: { minHeight: 36, paddingHorizontal: space.md, borderRadius: radius.sm + 2, gap: space.xs + 2 },
-  buttonSmText: { fontSize: 11, letterSpacing: 0.7 },
+  buttonSm: { minHeight: 36, paddingHorizontal: space.lg, gap: space.xs + 2 },
+  buttonSmText: { fontSize: 14, lineHeight: 18 },
   inactive: { opacity: 0.4 },
   card: {
     backgroundColor: colors.surface,
