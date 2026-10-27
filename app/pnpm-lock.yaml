@@ -14,9 +14,9 @@ importers:
       '@expo-google-fonts/inter':
         specifier: ^0.4.1
         version: 0.4.2
-      '@expo-google-fonts/jetbrains-mono':
-        specifier: ^0.4.1
-        version: 0.4.1
+      '@expo-google-fonts/roboto-mono':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@expo/vector-icons':
         specifier: ^14.1.0
         version: 14.1.0(expo-font@13.3.2(expo@53.0.24(@babel/core@7.28.5)(@expo/metro-runtime@5.0.5(react-native@0.79.3(@babel/core@7.28.5)(@types/react@19.0.14)(bufferutil@4.0.9)(react@19.0.0)(utf-8-validate@5.0.10)))(bufferutil@4.0.9)(react-native-webview@13.13.5(react-native@0.79.3(@babel/core@7.28.5)(@types/react@19.0.14)(bufferutil@4.0.9)(react@19.0.0)(utf-8-validate@5.0.10))(react@19.0.0))(react-native@0.79.3(@babel/core@7.28.5)(@types/react@19.0.14)(bufferutil@4.0.9)(react@19.0.0)(utf-8-validate@5.0.10))(react@19.0.0)(utf-8-validate@5.0.10))(react@19.0.0))(react-native@0.79.3(@babel/core@7.28.5)(@types/react@19.0.14)(bufferutil@4.0.9)(react@19.0.0)(utf-8-validate@5.0.10))(react@19.0.0)
@@ -869,8 +869,8 @@ packages:
   '@expo-google-fonts/inter@0.4.2':
     resolution: {integrity: sha512-syfiImMaDmq7cFi0of+waE2M4uSCyd16zgyWxdPOY7fN2VBmSLKEzkfbZgeOjJq61kSqPBNNtXjggiQiSD6gMQ==}
 
-  '@expo-google-fonts/jetbrains-mono@0.4.1':
-    resolution: {integrity: sha512-CslACrtMOcRwoWXCO7OMEI+9w3fukWSoBtvNz46OqPoogEuuoY0tkDY1O8sFumk8t0pC6Cx0Xr95O0TOQhpkug==}
+  '@expo-google-fonts/roboto-mono@0.4.2':
+    resolution: {integrity: sha512-TkWqMKicHKbWclt3dZuzHgBXE4OZgenz+Bp8XT26/wKcWvUXnzGvS7C140QYCsq+CKZsa+0JTZppq2Wfyx0SCQ==}
 
   '@expo/cli@0.24.22':
     resolution: {integrity: sha512-cEg6/F8ZWjoVkEwm0rXKReWbsCUROFbLFBYht+d5RzHnDwJoTX4QWJKx4m+TGNDPamRUIGw36U4z41Fvev0XmA==}
@@ -7430,7 +7430,7 @@ snapshots:
 
   '@expo-google-fonts/inter@0.4.2': {}
 
-  '@expo-google-fonts/jetbrains-mono@0.4.1': {}
+  '@expo-google-fonts/roboto-mono@0.4.2': {}
 
   '@expo/cli@0.24.22(bufferutil@4.0.9)(utf-8-validate@5.0.10)':
     dependencies:

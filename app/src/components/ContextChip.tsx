@@ -1,14 +1,14 @@
 /**
  * @file Context chip at the top of the Ask sheet (spec §7.4): shows what was
- * read, lets the user inspect the raw text and exclude it, or offers the
+ * read, lets the user inspect the raw text and switch it off, or offers the
  * clipboard when the screen couldn't be read.
  */
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { AgentContext } from '../agentApi';
 import { colors, HIT, radius, space } from '../theme';
-import { Button, Text } from './ui';
+import { Button, IconTile, Pill, Text, Toggle } from './ui';
 
 /** Captured screen or clipboard text, as shown and sent. */
 export type CapturedContext = AgentContext & { truncated: boolean };
@@ -30,7 +30,8 @@ type Props = {
 };
 
 /**
- * Context chip with expand, "Don't use" toggle and clipboard fallback.
+ * Context chip: expandable captured text with a "Use this context" toggle, or
+ * the clipboard fallback when nothing was captured.
  * @param props.state What was captured.
  * @param props.excluded Whether the user excluded the text from requests.
  * @param props.onExcludedChange Toggles exclusion.
@@ -50,16 +51,16 @@ export function ContextChip({ state, excluded, onExcludedChange, onUseClipboard,
           : "Turn on screen reading to let me see what you're looking at, or use your clipboard.";
     return (
       <View style={[styles.box, styles.muted]}>
-        <View style={styles.headRow}>
-          <Feather name="eye-off" size={16} color={colors.textSecondary} />
-          <Text variant="captionStrong" color="textSecondary">
-            {"Couldn't read the screen"}
-          </Text>
+        <View style={styles.head}>
+          <IconTile icon="eye-off" tone="neutral" size={36} />
+          <View style={styles.flex}>
+            <Text variant="captionStrong">{"Couldn't read the screen"}</Text>
+            <Text variant="caption" color="textSecondary">
+              {body}
+            </Text>
+          </View>
         </View>
-        <Text variant="caption" color="textSecondary">
-          {body}
-        </Text>
-        <View style={styles.actionRow}>
+        <View style={styles.actions}>
           <Button size="sm" variant="secondary" icon="clipboard" label="Use clipboard" onPress={onUseClipboard} />
           {clipboardError ? (
             <Text variant="caption" color="danger" accessibilityLiveRegion="polite">
@@ -72,43 +73,43 @@ export function ContextChip({ state, excluded, onExcludedChange, onUseClipboard,
   }
 
   const { ctx } = state;
-  const label = `${excluded ? 'Not using' : 'Reading'}: ${ctx.appLabel} · ${ctx.text.length} chars${ctx.truncated ? ' (truncated)' : ''}`;
-  const fg = excluded ? 'textSecondary' : 'primary';
+  const chars = `${ctx.text.length} chars`;
   return (
     <View style={[styles.box, excluded ? styles.muted : styles.active]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={`${excluded ? 'Not using' : 'Reading'}: ${ctx.appLabel} · ${chars}${ctx.truncated ? ', truncated' : ''}`}
         accessibilityHint={open ? 'Hides the captured text' : 'Shows the captured text'}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((o) => !o)}
-        style={styles.headRow}
-        hitSlop={8}
+        style={({ pressed }) => [styles.head, pressed && styles.pressed]}
       >
-        <Feather name={excluded ? 'eye-off' : ctx.source === 'clipboard' ? 'clipboard' : 'eye'} size={16} color={colors[fg]} />
-        <Text variant="captionStrong" color={fg} style={styles.flex} numberOfLines={1}>
-          {label}
-        </Text>
-        <Feather name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors[fg]} />
+        <IconTile icon={ctx.source === 'clipboard' ? 'clipboard' : 'smartphone'} tone={excluded ? 'neutral' : 'primary'} size={36} />
+        <View style={styles.flex}>
+          <Text variant="captionStrong" color={excluded ? 'textSecondary' : 'text'} numberOfLines={1}>
+            {excluded ? `Not using ${ctx.appLabel}` : `Reading ${ctx.appLabel}`}
+          </Text>
+          <View style={styles.meta}>
+            <Text variant="mono" color="textTertiary" style={styles.metaText}>
+              {chars}
+            </Text>
+            {ctx.truncated ? <Pill label="Truncated" tone="warning" /> : null}
+          </View>
+        </View>
+        <Feather name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />
       </Pressable>
       {open ? (
         <>
-          <ScrollView style={styles.raw} nestedScrollEnabled>
+          <ScrollView style={[styles.raw, excluded && styles.rawOnMuted]} nestedScrollEnabled>
             <Text variant="mono" color="textSecondary" selectable>
               {ctx.text}
             </Text>
           </ScrollView>
           <View style={styles.toggleRow}>
             <Text variant="callout" style={styles.flex}>
-              {"Don't use this text"}
+              Use this context
             </Text>
-            <Switch
-              accessibilityLabel="Don't use this text"
-              value={excluded}
-              onValueChange={onExcludedChange}
-              trackColor={{ false: colors.borderStrong, true: colors.primary }}
-              thumbColor={colors.surface}
-            />
+            <Toggle label="Use this context" value={!excluded} onValueChange={(use) => onExcludedChange(!use)} />
           </View>
         </>
       ) : null}
@@ -117,19 +118,21 @@ export function ContextChip({ state, excluded, onExcludedChange, onUseClipboard,
 }
 
 const styles = StyleSheet.create({
-  box: { borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, padding: space.md, gap: space.sm },
-  active: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder },
+  box: { borderRadius: radius.lg, borderWidth: 1, padding: space.sm + 2, gap: space.sm },
+  active: { backgroundColor: colors.surface, borderColor: colors.primarySoftBorder },
   muted: { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
-  headRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 32 },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, flexWrap: 'wrap' },
-  flex: { flex: 1 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: HIT - 8 },
+  pressed: { opacity: 0.6 },
+  flex: { flex: 1, gap: space.xxs },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  metaText: { fontSize: 12, lineHeight: 16 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: space.md, flexWrap: 'wrap', paddingLeft: 36 + space.md },
   raw: {
     maxHeight: 140,
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
     padding: space.md,
   },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', minHeight: HIT, gap: space.md },
+  rawOnMuted: { backgroundColor: colors.surface },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', minHeight: HIT, gap: space.md, paddingHorizontal: space.xs },
 });

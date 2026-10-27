@@ -1,6 +1,6 @@
 /**
  * @file AsyncStorage-backed local state: defensive JSON helpers, the known
- * recipient list, the executed-intent set and the last transaction.
+ * recipient list, the executed-intent set and the payment activity list.
  *
  * Every read is defensive: missing, corrupt or foreign data reads as "absent"
  * instead of throwing, so a bad write can never brick the app.
@@ -15,8 +15,14 @@ export const KEYS = {
   recipients: 'recipients:v1',
   executed: 'executed:v1',
   pending: 'pending:v1',
-  lastTx: 'lastTx:v1',
+  activity: 'activity:v1',
 } as const;
+
+/** Pre-activity single-entry key, migrated into `activity:v1` on first read. */
+const LEGACY_LAST_TX_KEY = 'lastTx:v1';
+
+/** Most recent payments kept for Home's Activity list. */
+const MAX_ACTIVITY = 20;
 
 /** Most executed intent IDs kept; intents expire after 5 min, so this is generous. */
 const MAX_EXECUTED = 200;
@@ -129,10 +135,10 @@ export async function markExecuted(id: string): Promise<void> {
   if (!ids.includes(id)) await writeJson(KEYS.executed, [...ids, id].slice(-MAX_EXECUTED));
 }
 
-/** The most recent finished payment, shown on Home. */
-export type LastTx = { hash: Hash; to: Address; amountWei: string; status: 'confirmed' | 'failed'; at: number };
+/** A finished payment, shown in Home's Activity list. Chain data only, never screen text. */
+export type ActivityTx = { hash: Hash; to: Address; amountWei: string; status: 'confirmed' | 'failed'; at: number };
 
-const isLastTx = (v: unknown): v is LastTx =>
+const isActivityTx = (v: unknown): v is ActivityTx =>
   isRecord(v) &&
   isHash(v.hash) &&
   typeof v.to === 'string' &&
@@ -141,19 +147,36 @@ const isLastTx = (v: unknown): v is LastTx =>
   (v.status === 'confirmed' || v.status === 'failed') &&
   typeof v.at === 'number';
 
+const isArray = (v: unknown): v is unknown[] => Array.isArray(v);
+
 /**
- * Reads the last finished payment.
- * @returns The entry, or null if none.
+ * Reads recent payments, newest first. Corrupt entries are dropped one by one
+ * rather than discarding the whole list. On first run after the upgrade, the
+ * old single `lastTx:v1` entry becomes the list's only item and is removed.
+ * @returns Up to 20 payments, newest first.
  */
-export async function getLastTx(): Promise<LastTx | null> {
-  return readJson(KEYS.lastTx, isLastTx);
+export async function getActivity(): Promise<ActivityTx[]> {
+  const stored = await readJson(KEYS.activity, isArray);
+  if (stored) return stored.filter(isActivityTx).slice(0, MAX_ACTIVITY);
+  const legacy = await readJson(LEGACY_LAST_TX_KEY, isActivityTx);
+  if (!legacy) return [];
+  await writeJson(KEYS.activity, [legacy]);
+  await removeKey(LEGACY_LAST_TX_KEY);
+  return [legacy];
 }
 
 /**
- * Records the last finished payment.
+ * Records a finished payment at the top of the activity list (deduplicated by
+ * hash, capped at 20).
  * @param tx Payment summary (no screen text, only chain data).
  * @returns Resolves once stored.
  */
-export async function setLastTx(tx: LastTx): Promise<void> {
-  await writeJson(KEYS.lastTx, tx);
+export async function addActivity(tx: ActivityTx): Promise<void> {
+  const rest = (await getActivity()).filter((t) => t.hash !== tx.hash);
+  await writeJson(KEYS.activity, [tx, ...rest].slice(0, MAX_ACTIVITY));
 }
+
+/**
+ * Former single-slot writer, kept so `pendingTx.ts` needs no change.
+ * Now appends to the activity list.
+ */

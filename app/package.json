@@ -8,12 +8,13 @@
     "android:release": "expo run:android --variant release",
     "prebuild": "expo prebuild --platform android --clean",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@ethersproject/shims": "^5.8.0",
     "@expo-google-fonts/inter": "^0.4.1",
-    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/roboto-mono": "^0.4.2",
     "@expo/vector-icons": "^14.1.0",
     "@gorhom/bottom-sheet": "^5.1.6",
     "@privy-io/expo": "^0.53.8",

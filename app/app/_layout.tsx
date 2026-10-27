@@ -9,7 +9,7 @@
  * no extra Linking handling here and no double navigation.
  */
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
-import { JetBrainsMono_400Regular, JetBrainsMono_700Bold } from '@expo-google-fonts/jetbrains-mono';
+import { RobotoMono_400Regular, RobotoMono_500Medium, RobotoMono_600SemiBold } from '@expo-google-fonts/roboto-mono';
 import { Feather } from '@expo/vector-icons';
 import { PrivyProvider } from '@privy-io/expo';
 import { useFonts } from 'expo-font';
@@ -38,8 +38,9 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
-    JetBrainsMono_400Regular,
-    JetBrainsMono_700Bold,
+    RobotoMono_400Regular,
+    RobotoMono_500Medium,
+    RobotoMono_600SemiBold,
   });
   // A font failure falls back to system fonts rather than holding the splash forever.
   const ready = loaded || !!error;

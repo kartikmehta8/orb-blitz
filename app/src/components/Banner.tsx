@@ -2,25 +2,24 @@
  * @file Inline status banner with optional actions, plus the pending-payment
  * banner shared by Home and the Ask sheet. Tones map to the semantic palette only.
  */
-import { Feather } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { txUrl } from '../config';
 import { formatMon, shortAddress } from '../intent';
 import type { PendingStatus } from '../pendingTx';
 import { colors, radius, space } from '../theme';
-import { Button, Text, type IconName } from './ui';
+import { Button, IconTile, Text, type IconName } from './ui';
 
 type Tone = 'neutral' | 'warning' | 'danger';
 
-const TONES: Record<Tone, { bg: string; border: string; fg: 'textSecondary' | 'warning' | 'danger' }> = {
-  neutral: { bg: colors.surfaceMuted, border: colors.border, fg: 'textSecondary' },
+const TONES: Record<Tone, { bg: string; border: string; fg: 'text' | 'warning' | 'danger' }> = {
+  neutral: { bg: colors.surface, border: colors.border, fg: 'text' },
   warning: { bg: colors.warningSoft, border: colors.warningBorder, fg: 'warning' },
   danger: { bg: colors.dangerSoft, border: colors.dangerSoft, fg: 'danger' },
 };
 
 /**
- * Banner row: icon, text and trailing actions.
+ * Banner row: tinted icon tile, text and trailing actions.
  * @param props.tone Semantic tone.
  * @param props.icon Feather icon name.
  * @param props.title Bold first line.
@@ -44,7 +43,7 @@ export function Banner({
   const t = TONES[tone];
   return (
     <View accessibilityRole="alert" style={[styles.row, { backgroundColor: t.bg, borderColor: t.border }]}>
-      <Feather name={icon} size={16} color={colors[t.fg]} style={styles.icon} />
+      <IconTile icon={icon} tone={tone} size={32} />
       <View style={styles.text}>
         <Text variant="captionStrong" color={t.fg}>
           {title}
@@ -75,7 +74,7 @@ export function PendingBanner({ status, onRecheck }: { status: PendingStatus; on
         title={`Payment pending · ${formatMon(BigInt(status.tx.amountWei), 18)}`}
         body={`To ${shortAddress(status.tx.to)}. Waiting for Monad testnet.`}
       >
-        <Button size="sm" variant="ghost" label="Check again" onPress={onRecheck} />
+        <Button size="sm" variant="secondary" label="Check" accessibilityLabel="Check payment again" onPress={onRecheck} />
       </Banner>
     );
   }
@@ -83,7 +82,14 @@ export function PendingBanner({ status, onRecheck }: { status: PendingStatus; on
     const { hash } = status.tx;
     return (
       <Banner tone="neutral" icon="help-circle" title="Unknown, check explorer" body="Your last payment didn't confirm in 10 minutes.">
-        <Button size="sm" variant="ghost" label="Explorer" icon="external-link" onPress={() => void Linking.openURL(txUrl(hash))} />
+        <Button
+          size="sm"
+          variant="secondary"
+          label="View"
+          icon="external-link"
+          accessibilityLabel="View payment on explorer"
+          onPress={() => void Linking.openURL(txUrl(hash))}
+        />
       </Banner>
     );
   }
@@ -95,11 +101,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    paddingVertical: space.md,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
+    padding: space.md,
+    borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  icon: { alignSelf: 'flex-start', marginTop: 1 },
   text: { flex: 1, gap: space.xxs },
 });

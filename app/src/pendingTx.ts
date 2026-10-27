@@ -8,7 +8,7 @@
 import { TransactionReceiptNotFoundError, type Address, type Hash, type PublicClient } from 'viem';
 import { toChecksumAddress } from './intent';
 import { addSpend } from './limits';
-import { addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readJson, removeKey, setLastTx, writeJson } from './storage';
+import { addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readJson, removeKey, addActivity, writeJson } from './storage';
 
 /** A sent, unconfirmed payment. Chain data only, never screen text. */
 export type PendingTx = { hash: Hash; intentId: string; to: Address; amountWei: string; sentAt: number };
@@ -49,7 +49,7 @@ export async function loadPending(): Promise<PendingTx | null> {
 
 /**
  * Applies a receipt: on success adds spend and recipient and marks the intent
- * executed; either way records `lastTx` and clears the slot. Idempotent: does
+ * executed; either way appends to the activity list and clears the slot. Idempotent: does
  * nothing if the slot no longer holds this hash (already finalized elsewhere).
  * @param tx The payment.
  * @param status Receipt status.
@@ -62,7 +62,7 @@ export async function finalizePending(tx: PendingTx, status: 'success' | 'revert
   if (confirmed) {
     await Promise.all([addSpend(BigInt(tx.amountWei)), addRecipient(tx.to), markExecuted(tx.intentId)]);
   }
-  await setLastTx({ hash: tx.hash, to: tx.to, amountWei: tx.amountWei, status: confirmed ? 'confirmed' : 'failed', at: Date.now() });
+  await addActivity({ hash: tx.hash, to: tx.to, amountWei: tx.amountWei, status: confirmed ? 'confirmed' : 'failed', at: Date.now() });
 }
 
 /**

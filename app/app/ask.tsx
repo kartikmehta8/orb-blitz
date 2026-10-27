@@ -29,10 +29,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BubbleOverlay } from '../modules/bubble-overlay';
 import { planTurn, type AgentContext, type ChatTurn, type Clarification } from '../src/agentApi';
-import { Banner, PendingBanner } from '../src/components/Banner';
+import { PendingBanner } from '../src/components/Banner';
+import { BrandMark } from '../src/components/BrandMark';
 import { ContextChip, type CapturedContext, type ContextState } from '../src/components/ContextChip';
 import { IntentCard } from '../src/components/IntentCard';
-import { MessageBubble } from '../src/components/MessageBubble';
+import { MessageBubble, NoticeRow, TypingIndicator } from '../src/components/MessageBubble';
+import { SuggestionChip } from '../src/components/SuggestionChip';
 import { Button, Pill, Text, type IconName } from '../src/components/ui';
 import { chipLabel } from '../src/fallbackParser';
 import { usePendingTx, useWallet } from '../src/hooks';
@@ -43,17 +45,19 @@ import { colors, HIT, radius, shadow, space, type as typeScale } from '../src/th
 /** Same cap the screen reader applies; clipboard text is held to it too. */
 const MAX_CONTEXT_CHARS = 4000;
 const MAX_INPUT_CHARS = 500;
+/** Visual size of the header close button; `hitSlop` pads it to a 48-pt target. */
+const CLOSE = 36;
 
 const QUICK_ACTIONS: { label: string; icon: IconName }[] = [
   { label: 'Pay this', icon: 'send' },
   { label: 'What is this address?', icon: 'search' },
-  { label: 'My balance', icon: 'credit-card' },
+  { label: 'My balance', icon: 'pie-chart' },
 ];
 
 type Turn =
   | { id: string; kind: 'user'; text: string }
   | { id: string; kind: 'assistant'; text: string; intents: Intent[]; clarification: Clarification | null }
-  | { id: string; kind: 'notice'; text: string; tone: 'warning' | 'danger' };
+  | { id: string; kind: 'notice'; text: string; tone: 'warning' | 'danger'; icon: IconName };
 
 /**
  * Runs a native call that may be missing (Expo Go, iOS) or throw.
@@ -225,7 +229,10 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
         signal: controller.signal,
       });
       const added: Turn[] = [];
-      if (outcome.notice) added.push({ id: randomUUID(), kind: 'notice', ...outcome.notice });
+      // planTurn's only danger notice is the auth failure; warnings mean the agent was unreachable.
+      if (outcome.notice) {
+        added.push({ id: randomUUID(), kind: 'notice', ...outcome.notice, icon: outcome.notice.tone === 'danger' ? 'lock' : 'wifi-off' });
+      }
       const reply = [...new Set([outcome.reply, outcome.clarification?.question ?? ''])].filter(Boolean).join('\n\n');
       if (reply || outcome.intents.length) {
         added.push({ id: randomUUID(), kind: 'assistant', text: reply, intents: outcome.intents, clarification: outcome.clarification });
@@ -233,7 +240,10 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
       setTurns((t) => [...t, ...added]);
     } catch {
       if (!controller.signal.aborted) {
-        setTurns((t) => [...t, { id: randomUUID(), kind: 'notice', text: 'Something went wrong. Try again.', tone: 'danger' }]);
+        setTurns((t) => [
+          ...t,
+          { id: randomUUID(), kind: 'notice', text: 'Something went wrong. Try again.', tone: 'danger', icon: 'alert-circle' },
+        ]);
       }
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
@@ -241,8 +251,11 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
     }
   };
 
+
   const lastTurn = turns[turns.length - 1];
   const canSend = !!input.trim() && !busy;
+  // A review card is tall; give the sheet more room once one is on screen.
+  const hasIntent = turns.some((t) => t.kind === 'assistant' && t.intents.length > 0);
 
   let body: ReactNode;
   if (!ready || (user && !address)) {
@@ -257,15 +270,15 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
   } else if (!user || !address) {
     body = (
       <View style={styles.gate}>
-        <View style={styles.gateIcon}>
-          <Feather name="lock" size={20} color={colors.primary} />
+        <BrandMark size={56} />
+        <View style={styles.gateText}>
+          <Text variant="title" align="center">
+            Sign in to Bubble Agent first.
+          </Text>
+          <Text variant="callout" color="textSecondary" align="center">
+            Sign in once with your email, then tap the bubble from any app.
+          </Text>
         </View>
-        <Text variant="headline" align="center">
-          Sign in to Bubble Agent first.
-        </Text>
-        <Text variant="callout" color="textSecondary" align="center">
-          Sign in once with your email, then tap the bubble from any app.
-        </Text>
         <Button label="Open Bubble Agent" icon="arrow-right" onPress={() => router.replace('/')} style={styles.gateButton} />
       </View>
     );
@@ -287,18 +300,22 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
             onUseClipboard={() => void readClipboard()}
             clipboardError={clipboardError}
           />
+          {turns.length === 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={styles.quickScroll}
+              contentContainerStyle={styles.quick}
+            >
+              {QUICK_ACTIONS.map((a) => (
+                <SuggestionChip key={a.label} label={a.label} icon={a.icon} onPress={() => void send(a.label)} />
+              ))}
+            </ScrollView>
+          ) : null}
           {turns.map((turn) => {
             if (turn.kind === 'user') return <MessageBubble key={turn.id} role="user" text={turn.text} />;
-            if (turn.kind === 'notice') {
-              return (
-                <Banner
-                  key={turn.id}
-                  tone={turn.tone}
-                  icon={turn.tone === 'danger' ? 'alert-octagon' : 'cloud-off'}
-                  title={turn.text}
-                />
-              );
-            }
+            if (turn.kind === 'notice') return <NoticeRow key={turn.id} text={turn.text} tone={turn.tone} icon={turn.icon} />;
             const showChips = turn === lastTurn && !busy && !!turn.clarification?.options.length;
             return (
               <View key={turn.id} style={styles.turn}>
@@ -315,28 +332,27 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
                 {showChips ? (
                   <View style={styles.chips}>
                     {turn.clarification?.options.map((option) => (
-                      <Chip key={option} label={chipLabel(option)} mono={option.startsWith('0x')} onPress={() => void send(option)} />
+                      <SuggestionChip
+                        key={option}
+                        label={chipLabel(option)}
+                        mono={option.startsWith('0x')}
+                        accessibilityLabel={option}
+                        onPress={() => void send(option)}
+                      />
                     ))}
                   </View>
                 ) : null}
               </View>
             );
           })}
-          {busy ? <MessageBubble role="assistant" thinking /> : null}
-          {turns.length === 0 ? (
-            <View style={styles.chips}>
-              {QUICK_ACTIONS.map((a) => (
-                <Chip key={a.label} label={a.label} icon={a.icon} onPress={() => void send(a.label)} />
-              ))}
-            </View>
-          ) : null}
+          {busy ? <TypingIndicator /> : null}
         </ScrollView>
 
         <View style={styles.composer}>
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder={'Ask, or say "pay this"'}
+            placeholder="Ask or say “pay this”"
             placeholderTextColor={colors.textTertiary}
             maxLength={MAX_INPUT_CHARS}
             returnKeyType="send"
@@ -347,10 +363,10 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Send"
-            accessibilityState={{ disabled: !canSend }}
+            accessibilityState={{ disabled: !canSend, busy }}
             disabled={!canSend}
             onPress={() => void send(input)}
-            style={({ pressed }) => [styles.sendButton, pressed && styles.sendPressed, !canSend && styles.inactive]}
+            style={({ pressed }) => [styles.send, pressed && styles.sendPressed, !canSend && styles.sendDisabled]}
           >
             <Feather name="arrow-up" size={20} color={colors.textInverse} />
           </Pressable>
@@ -370,6 +386,7 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
           style={[
             styles.sheet,
             {
+              maxHeight: hasIntent ? '85%' : '75%',
               paddingBottom: insets.bottom + space.md,
               transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [height, 0] }) }],
             },
@@ -377,18 +394,20 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
         >
           <View style={styles.handle} />
           <View style={styles.header}>
+            <BrandMark size={28} />
             <Text variant="headline" accessibilityRole="header">
               Bubble Agent
             </Text>
-            <Pill label="Monad Testnet" tone="primary" dot />
+            <Pill label="Testnet" tone="primary" />
             <View style={styles.flex} />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close"
+              hitSlop={(HIT - CLOSE) / 2}
               onPress={dismiss}
               style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
             >
-              <Feather name="x" size={20} color={colors.textSecondary} />
+              <Feather name="x" size={18} color={colors.textSecondary} />
             </Pressable>
           </View>
           {body}
@@ -398,75 +417,49 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
   );
 }
 
-/**
- * Tappable suggestion (quick action or clarification option).
- * @param props.label Visible label.
- * @param props.icon Optional leading icon.
- * @param props.mono Render the label in monospace (addresses).
- * @param props.onPress Sends the option.
- * @returns A pill-shaped button.
- */
-function Chip({ label, icon, mono, onPress }: { label: string; icon?: IconName; mono?: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={4}
-      onPress={() => {
-        void Haptics.selectionAsync();
-        onPress();
-      }}
-      style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
-    >
-      {icon ? <Feather name={icon} size={14} color={colors.primary} /> : null}
-      <Text variant={mono ? 'mono' : 'captionStrong'} color="text">
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scrim: { backgroundColor: colors.scrim },
   kav: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    maxHeight: '75%',
     flexShrink: 1,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
     paddingTop: space.sm,
     ...shadow.sheet,
   },
   handle: {
     alignSelf: 'center',
-    width: 36,
-    height: 4,
+    width: 40,
+    height: 5,
     borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
-    marginBottom: space.xs,
+    marginBottom: space.sm,
   },
-  header: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: space.xl, paddingRight: space.sm },
-  flex: { flex: 1 },
-  close: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  closePressed: { backgroundColor: colors.surfaceMuted },
-  scroll: { flexGrow: 0, flexShrink: 1 },
-  scrollContent: { paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.lg, gap: space.md },
-  turn: { gap: space.md },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  chip: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.xs + 2,
-    minHeight: 40,
-    paddingHorizontal: space.md + 2,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
+    gap: space.sm + 2,
+    paddingHorizontal: space.xl,
+    paddingBottom: space.md,
   },
-  chipPressed: { backgroundColor: colors.surfaceMuted },
+  flex: { flex: 1 },
+  close: {
+    width: CLOSE,
+    height: CLOSE,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closePressed: { backgroundColor: colors.border },
+  scroll: { flexGrow: 0, flexShrink: 1 },
+  scrollContent: { paddingHorizontal: space.xl, paddingTop: space.xs, paddingBottom: space.lg, gap: space.md },
+  quickScroll: { marginHorizontal: -space.xl, flexGrow: 0 },
+  quick: { paddingHorizontal: space.xl, gap: space.sm },
+  turn: { gap: space.md },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -480,12 +473,12 @@ const styles = StyleSheet.create({
     ...typeScale.body,
     flex: 1,
     minHeight: HIT,
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.xl,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceMuted,
     color: colors.text,
   },
-  sendButton: {
+  send: {
     width: HIT,
     height: HIT,
     borderRadius: radius.pill,
@@ -494,15 +487,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendPressed: { backgroundColor: colors.primaryPressed },
-  inactive: { opacity: 0.45 },
-  gate: { alignItems: 'center', gap: space.md, paddingHorizontal: space.xxl, paddingVertical: space.xxxl },
-  gateIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  sendDisabled: { backgroundColor: colors.primarySoftBorder },
+  gate: { alignItems: 'center', gap: space.lg, paddingHorizontal: space.xxl, paddingTop: space.xl, paddingBottom: space.xxl },
+  gateText: { alignItems: 'center', gap: space.sm },
   gateButton: { alignSelf: 'stretch', marginTop: space.sm },
 });

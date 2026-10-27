@@ -9,16 +9,16 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/icon.png",
+      "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F6F6F9"
+      "backgroundColor": "#FBFAF9"
     },
     "android": {
       "package": "com.bubbleagent.app",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#F6F6F9"
+        "backgroundColor": "#6E54FF"
       }
     },
     "plugins": [

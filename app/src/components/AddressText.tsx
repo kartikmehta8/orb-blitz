@@ -32,11 +32,12 @@ function toRuns(address: string): { text: string; strong: boolean }[] {
 /**
  * Grouped, partly bold address. Selectable so it can be copied by long-press.
  * @param props.address Checksummed address.
+ * @param props.align Text alignment (default left).
  * @returns Monospace text.
  */
-export function AddressText({ address }: { address: string }) {
+export function AddressText({ address, align }: { address: string; align?: 'left' | 'center' }) {
   return (
-    <Text variant="mono" color="textSecondary" selectable accessibilityLabel={`Address ${address}`}>
+    <Text variant="mono" color="textSecondary" align={align} selectable accessibilityLabel={`Address ${address}`}>
       {toRuns(address).map((r, i) => (
         <Text key={i} variant="mono" color={r.strong ? 'text' : 'textSecondary'} style={r.strong && styles.strong}>
           {r.text}

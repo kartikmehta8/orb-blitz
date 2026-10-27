@@ -1,23 +1,23 @@
 /**
- * @file Payment confirm card (spec §7.6/§7.7): amount, full recipient, source,
- * fee/total/balance-after, plain-language warnings, Confirm/Cancel (or
- * hold-to-confirm) and the execution state with explorer links.
+ * @file "Review payment" card (spec §7.6/§7.7): amount, full recipient,
+ * source, fee/total/balance-after, plain-language warnings, expiry, then
+ * Confirm/Cancel (or hold-to-confirm) and the execution status with explorer links.
  */
 import { Feather } from '@expo/vector-icons';
 import type { ConnectedEthereumWallet } from '@privy-io/expo';
 import * as Haptics from 'expo-haptics';
-import { useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Linking, StyleSheet, View } from 'react-native';
 import type { Address } from 'viem';
-import { config, txUrl } from '../config';
-import { useIntentExecution, type ExecState } from '../execute';
+import { config } from '../config';
+import { useIntentExecution } from '../execute';
 import { formatMon, type Intent, type IntentWarning } from '../intent';
-import { colors, HIT, radius, space } from '../theme';
+import { colors, radius, space } from '../theme';
 import { intentCost } from '../validateIntent';
 import { AddressText } from './AddressText';
-import { Button, Card, Pill, Text, type IconName } from './ui';
-
-const HOLD_MS = 1500;
+import { HoldButton } from './HoldButton';
+import { PaymentStatus } from './PaymentStatus';
+import { Button, Card, IconTile, Text, type IconName } from './ui';
 
 /** Plain-language copy for each warning (spec §8 where defined). */
 const WARNING_COPY: Record<IntentWarning, string> = {
@@ -29,16 +29,6 @@ const WARNING_COPY: Record<IntentWarning, string> = {
   CLOSE_TO_DAILY_LIMIT: "This uses most of today's spending limit.",
 };
 
-const STATE_PILL: Partial<Record<ExecState['status'], { label: string; tone: 'neutral' | 'primary' | 'success' | 'warning' | 'danger' }>> = {
-  confirming: { label: 'Approving', tone: 'primary' },
-  signing: { label: 'Signing', tone: 'primary' },
-  submitted: { label: 'Submitted', tone: 'primary' },
-  confirmed: { label: 'Confirmed', tone: 'success' },
-  failed: { label: 'Failed', tone: 'danger' },
-  pending_timeout: { label: 'Pending', tone: 'warning' },
-  cancelled: { label: 'Not confirmed', tone: 'neutral' },
-};
-
 /**
  * Where the recipient came from, as shown under the address.
  * @param p Intent provenance.
@@ -48,13 +38,13 @@ function sourceLine(p: Intent['provenance']): { icon: IconName; text: string } {
   const app = p.appLabel ?? 'another app';
   switch (p.source) {
     case 'screen':
-      return { icon: 'eye', text: `Found on screen in ${app}` };
+      return { icon: 'smartphone', text: `Found on screen in ${app}` };
     case 'clipboard':
       return { icon: 'clipboard', text: 'From clipboard' };
     case 'user':
       return { icon: 'message-circle', text: 'From your message' };
     case 'both':
-      return { icon: 'eye', text: `Found in ${app} and in your message` };
+      return { icon: 'smartphone', text: `Found in ${app} and in your message` };
   }
 }
 
@@ -67,12 +57,12 @@ type Props = {
 };
 
 /**
- * Confirm card for one intent.
+ * Review card for one intent.
  * @param props.intent Locally prepared intent.
  * @param props.wallet Privy embedded wallet (null while being created).
  * @param props.address Wallet address.
  * @param props.onSettled Refresh hook after the payment settles.
- * @returns The card.
+ * @returns The card, or a one-line note once the user cancels it.
  */
 export function IntentCard({ intent, wallet, address, onSettled }: Props) {
   const exec = useIntentExecution(intent, wallet, address, onSettled);
@@ -80,16 +70,17 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
   const { state, check, balanceWei, walletStatus, authMode } = exec;
   const cost = intentCost(intent);
   const source = sourceLine(intent.provenance);
-  const pill = STATE_PILL[state.status];
   const actionable = state.status === 'idle' || state.status === 'cancelled';
   // Confirm stays disabled until checks pass and the wallet provider has resolved (spinner meanwhile).
   const preparing = check === null || walletStatus === 'loading';
   const confirmBlocked = !check?.ok || walletStatus !== 'ready' || authMode === null;
+  const short = balanceWei !== null && cost !== null && balanceWei < cost.total;
+  const amount = intent.amountDisplay.replace(/\s*MON$/, '');
 
   if (declined) {
     return (
       <View style={styles.declined} accessibilityRole="text">
-        <Feather name="x" size={14} color={colors.textTertiary} />
+        <Feather name="x-circle" size={14} color={colors.textTertiary} />
         <Text variant="caption" color="textTertiary">
           Payment of {intent.amountDisplay} cancelled.
         </Text>
@@ -100,47 +91,46 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.badge}>
-          <Feather name="arrow-up-right" size={18} color={colors.primary} />
-        </View>
-        <View style={styles.flex}>
-          <Text variant="overline" color="textTertiary">
-            Payment
-          </Text>
-          <Text variant="title" style={styles.tabular} accessibilityRole="header">
-            Send {intent.amountDisplay}
-          </Text>
-        </View>
-        {pill ? <Pill label={pill.label} tone={pill.tone} /> : null}
-      </View>
-
-      <View style={styles.section}>
-        <Text variant="caption" color="textTertiary">
-          To
+        <Text variant="overline" color="textTertiary" accessibilityRole="header">
+          Review payment
         </Text>
-        <AddressText address={intent.to} />
-        <View style={styles.inline}>
-          <Feather name={source.icon} size={13} color={colors.textSecondary} />
-          <Text variant="caption" color="textSecondary">
-            {source.text}
+        {actionable ? <ExpiryCountdown expiresAt={intent.expiresAt} /> : null}
+      </View>
+
+      <View style={styles.amount} accessible accessibilityLabel={`Send ${intent.amountDisplay}`}>
+        <Text variant="display">{amount}</Text>
+        <Text variant="headline" color="textSecondary" style={styles.unit}>
+          MON
+        </Text>
+      </View>
+
+      <View style={styles.recipient}>
+        <IconTile icon="user" size={36} />
+        <View style={styles.recipientText}>
+          <Text variant="overline" color="textTertiary">
+            To
           </Text>
+          <AddressText address={intent.to} />
+          <View style={styles.inline}>
+            <Feather name={source.icon} size={12} color={colors.textSecondary} />
+            <Text variant="caption" color="textSecondary">
+              {source.text}
+            </Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.rows}>
-        <Row label="Network fee (est.)" value={intent.estFeeDisplay} />
-        <Row label="Total" value={cost ? formatMon(cost.total, 6) : '—'} strong />
-        <Row
-          label="Balance after"
-          value={balanceWei !== null && cost && balanceWei >= cost.total ? formatMon(balanceWei - cost.total) : '—'}
-        />
+      <View>
+        <DetailRow label="Network fee" value={intent.estFeeDisplay} />
+        <DetailRow label="Total" value={cost ? formatMon(cost.total, 6) : '—'} strong />
+        <DetailRow label="Balance after" value={balanceWei !== null && cost && !short ? formatMon(balanceWei - cost.total) : '—'} />
       </View>
 
       {intent.warnings.length ? (
-        <View style={styles.warnings}>
+        <View style={styles.stack}>
           {intent.warnings.map((w) => (
             <View key={w} style={styles.warning} accessibilityRole="alert">
-              <Feather name="alert-triangle" size={14} color={colors.warning} style={styles.warningIcon} />
+              <Feather name="alert-triangle" size={15} color={colors.warning} style={styles.rowIcon} />
               <Text variant="caption" color="warning" style={styles.flex}>
                 {WARNING_COPY[w]}
               </Text>
@@ -149,87 +139,72 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
         </View>
       ) : null}
 
-      {actionable && check && !check.ok ? (
-        <View style={styles.blocked}>
-          <View style={styles.inline}>
-            <Feather name="slash" size={14} color={colors.danger} />
-            <Text variant="captionStrong" color="danger" style={styles.flex} accessibilityLiveRegion="polite">
-              {check.reason}
-            </Text>
-          </View>
-          <View style={styles.inline}>
-            {'retryable' in check ? <Button size="sm" variant="secondary" label="Try again" onPress={() => void exec.recheck()} /> : null}
-            {balanceWei !== null && cost && balanceWei < cost.total ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                icon="droplet"
-                label="Get testnet MON"
-                onPress={() => void Linking.openURL(config.faucetUrl)}
-              />
-            ) : null}
-          </View>
-        </View>
-      ) : null}
-
       {actionable ? (
-        <>
+        <View style={styles.stack}>
+          {check && !check.ok ? (
+            <ReasonRow text={check.reason}>
+              {'retryable' in check ? (
+                <Button size="sm" variant="secondary" icon="refresh-cw" label="Try again" onPress={() => void exec.recheck()} />
+              ) : null}
+              {short ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon="droplet"
+                  label="Get testnet MON"
+                  onPress={() => void Linking.openURL(config.faucetUrl)}
+                />
+              ) : null}
+            </ReasonRow>
+          ) : null}
+          {walletStatus === 'error' ? <ReasonRow text="Your wallet isn't ready. Close and reopen Bubble Agent." /> : null}
           {state.status === 'cancelled' ? (
-            <Text variant="caption" color="textSecondary">
+            <Text variant="caption" color="textSecondary" align="center" accessibilityLiveRegion="polite">
               Not confirmed. You can try again.
             </Text>
           ) : null}
-          {walletStatus === 'error' ? (
-            <Text variant="caption" color="danger">
-              {"Your wallet isn't ready. Close and reopen Bubble Agent."}
-            </Text>
-          ) : null}
-          <View style={styles.actions}>
+          {authMode === 'hold' ? (
+            <HoldButton disabled={confirmBlocked || preparing} onComplete={() => void exec.confirm()} />
+          ) : (
             <Button
-              variant="secondary"
-              label="Cancel"
-              style={styles.flex}
-              onPress={() => {
-                void Haptics.selectionAsync();
-                setDeclined(true);
-              }}
+              label="Confirm"
+              icon="shield"
+              loading={preparing}
+              disabled={confirmBlocked}
+              accessibilityHint="Asks for your fingerprint or PIN, then sends"
+              onPress={() => void exec.confirm()}
             />
-            {authMode === 'hold' ? (
-              <HoldButton disabled={confirmBlocked || preparing} onComplete={() => void exec.confirm()} />
-            ) : (
-              <Button
-                label="Confirm"
-                icon="lock"
-                loading={preparing}
-                disabled={confirmBlocked}
-                accessibilityHint="Asks for your fingerprint or PIN, then sends"
-                style={styles.grow}
-                onPress={() => void exec.confirm()}
-              />
-            )}
-          </View>
-        </>
+          )}
+          <Button
+            variant="ghost"
+            label="Cancel"
+            onPress={() => {
+              void Haptics.selectionAsync();
+              setDeclined(true);
+            }}
+          />
+        </View>
       ) : (
-        <Status state={state} onCheckAgain={() => void exec.checkAgain()} />
+        <PaymentStatus state={state} onCheckAgain={() => void exec.checkAgain()} />
       )}
     </Card>
   );
 }
 
 /**
- * Label/value row with tabular numbers.
- * @param props.label Left label.
- * @param props.value Right value.
- * @param props.strong Emphasize the value.
+ * Label/value row with a hairline divider above it.
+ * @param props.label Mono caps label.
+ * @param props.value Right-aligned value.
+ * @param props.strong Emphasize the value (the total).
  * @returns A row.
  */
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function DetailRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <View style={styles.row} accessible accessibilityLabel={`${label}: ${value}`}>
-      <Text variant="callout" color="textSecondary">
+      <Text variant="overline" color="textTertiary">
         {label}
       </Text>
-      <Text variant={strong ? 'bodyStrong' : 'callout'} style={styles.tabular}>
+      <Text variant={strong ? 'amount' : 'callout'} style={styles.tabular}>
         {value}
       </Text>
     </View>
@@ -237,168 +212,91 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
 }
 
 /**
- * In-flight and terminal states with explorer links.
- * @param props.state Execution state (not idle/cancelled).
- * @param props.onCheckAgain Re-checks after a receipt timeout.
- * @returns Status block.
+ * Muted row explaining why Confirm is disabled, with optional fix-it actions.
+ * @param props.text Reason.
+ * @param props.children Small action buttons.
+ * @returns The row.
  */
-function Status({ state, onCheckAgain }: { state: ExecState; onCheckAgain: () => void }) {
-  const hash = 'hash' in state ? state.hash : null;
-  const explorer = hash ? (
-    <Button size="sm" variant="ghost" icon="external-link" label="View on explorer" onPress={() => void Linking.openURL(txUrl(hash))} />
-  ) : null;
-
-  switch (state.status) {
-    case 'confirming':
-    case 'signing':
-    case 'submitted':
-      return (
-        <View style={styles.status} accessibilityLiveRegion="polite">
-          <View style={styles.inline}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text variant="callout" color="textSecondary">
-              {state.status === 'confirming'
-                ? 'Waiting for your approval…'
-                : state.status === 'signing'
-                  ? 'Signing and sending…'
-                  : 'Submitted. Waiting for confirmation…'}
-            </Text>
-          </View>
-          {explorer}
-        </View>
-      );
-    case 'confirmed':
-      return (
-        <View style={styles.status} accessibilityLiveRegion="polite">
-          <View style={styles.inline}>
-            <Feather name="check-circle" size={18} color={colors.success} />
-            <Text variant="bodyStrong" color="success" style={styles.tabular}>
-              {state.ms === null ? 'Confirmed.' : `Confirmed in ${state.ms} ms.`}
-            </Text>
-          </View>
-          {explorer}
-        </View>
-      );
-    case 'failed':
-      return (
-        <View style={styles.status} accessibilityLiveRegion="polite">
-          <View style={styles.inline}>
-            <Feather name="x-circle" size={18} color={colors.danger} />
-            <Text variant="callout" color="danger" style={styles.flex}>
-              {state.reason}
-            </Text>
-          </View>
-          {explorer}
-        </View>
-      );
-    case 'pending_timeout':
-      return (
-        <View style={styles.status} accessibilityLiveRegion="polite">
-          <View style={styles.inline}>
-            <Feather name="clock" size={18} color={colors.warning} />
-            <Text variant="callout" color="warning">
-              Still pending
-            </Text>
-          </View>
-          <View style={styles.inline}>
-            <Button size="sm" variant="secondary" icon="refresh-cw" label="Check again" onPress={onCheckAgain} />
-            {explorer}
-          </View>
-        </View>
-      );
-    default:
-      return null;
-  }
+function ReasonRow({ text, children }: { text: string; children?: ReactNode }) {
+  return (
+    <View style={styles.reason}>
+      <View style={styles.reasonHead}>
+        <Feather name="info" size={15} color={colors.textSecondary} style={styles.rowIcon} />
+        <Text variant="captionStrong" color="textSecondary" style={styles.flex} accessibilityLiveRegion="polite">
+          {text}
+        </Text>
+      </View>
+      {children ? <View style={styles.reasonActions}>{children}</View> : null}
+    </View>
+  );
 }
 
 /**
- * Hold-to-confirm fallback when no biometric or PIN is enrolled (1.5 s press).
- * @param props.disabled Blocks the gesture.
- * @param props.onComplete Called once the hold completes.
- * @returns A primary-styled button with a fill that tracks the hold.
+ * Subtle "Expires in m:ss" label; owns its own one-second timer so the card doesn't re-render.
+ * The expiry check itself lives in `useIntentExecution`, which re-validates at `expiresAt`.
+ * @param props.expiresAt Intent expiry (epoch ms).
+ * @returns The label.
  */
-function HoldButton({ disabled, onComplete }: { disabled: boolean; onComplete: () => void }) {
-  const progress = useRef(new Animated.Value(0)).current;
+function ExpiryCountdown({ expiresAt }: { expiresAt: number }) {
+  const [now, setNow] = useState(Date.now);
+  const left = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+  const expired = left === 0;
 
-  const start = () => {
-    void Haptics.selectionAsync();
-    Animated.timing(progress, { toValue: 1, duration: HOLD_MS, easing: Easing.linear, useNativeDriver: true }).start(({ finished }) => {
-      if (!finished) return;
-      progress.setValue(0);
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onComplete();
-    });
-  };
-  const release = () => Animated.timing(progress, { toValue: 0, duration: 150, useNativeDriver: true }).start();
+  useEffect(() => {
+    if (expired) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [expired]);
 
+  const label = expired ? 'Expired' : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Hold to confirm"
-      accessibilityHint="Press and hold for one and a half seconds to send"
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPressIn={start}
-      onPressOut={release}
-      style={[styles.hold, styles.grow, disabled && styles.inactive]}
-    >
-      <Animated.View style={[styles.holdFill, { transform: [{ scaleX: progress }] }]} />
-      <Feather name="lock" size={17} color={colors.textInverse} />
-      <Text variant="bodyStrong" color="textInverse">
-        Hold to confirm
+    <View style={styles.inline} accessible accessibilityLabel={expired ? 'Payment expired' : `Expires in ${label}`}>
+      <Feather name="clock" size={12} color={expired ? colors.danger : colors.textTertiary} />
+      <Text variant="overline" color={expired ? 'danger' : 'textTertiary'} style={styles.tabular}>
+        {label}
       </Text>
-    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: { gap: space.lg, padding: space.xl, borderRadius: radius.xl },
-  header: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  badge: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   flex: { flex: 1 },
-  grow: { flex: 2 },
   tabular: { fontVariant: ['tabular-nums'] },
-  section: { gap: space.xs + 2 },
-  inline: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' },
-  rows: {
-    gap: space.sm,
-    paddingTop: space.md,
+  amount: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: space.sm, paddingVertical: space.xs },
+  unit: { marginBottom: space.xs },
+  recipient: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.md,
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceMuted,
+  },
+  recipientText: { flex: 1, gap: space.xs },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 44,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  warnings: { gap: space.xs },
+  stack: { gap: space.sm },
   warning: {
     flexDirection: 'row',
     gap: space.sm,
     padding: space.md,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     backgroundColor: colors.warningSoft,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.warningBorder,
   },
-  warningIcon: { marginTop: 1 },
-  blocked: { gap: space.sm, padding: space.md, borderRadius: radius.sm, backgroundColor: colors.dangerSoft },
-  actions: { flexDirection: 'row', gap: space.md },
-  status: { gap: space.sm, alignItems: 'flex-start' },
-  hold: {
-    minHeight: HIT,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.sm,
-    overflow: 'hidden',
-  },
-  holdFill: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.primaryPressed, transformOrigin: 'left' },
-  inactive: { opacity: 0.45 },
+  rowIcon: { marginTop: 1 },
+  reason: { gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  reasonHead: { flexDirection: 'row', gap: space.sm },
+  reasonActions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   declined: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.sm, alignSelf: 'center' },
 });
