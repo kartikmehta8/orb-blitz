@@ -28,6 +28,18 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_SECONDS = 30;
 
 /**
+ * Appends Privy's reason to a sign-in error, so config problems (wrong client
+ * ID, app identifier not allowed) are visible instead of a generic message.
+ * @param summary User-facing summary.
+ * @param e Whatever the Privy call threw.
+ * @returns e.g. "Couldn't send the code. Invalid app client ID".
+ */
+function withCause(summary: string, e: unknown): string {
+  const cause = e instanceof Error ? e.message.replace(/^\[[^\]]*\]\s*[^:]*:\s*/, '').split('\n')[0].slice(0, 140) : '';
+  return cause ? `${summary} ${cause}` : summary;
+}
+
+/**
  * Coarse relative time for the last payment.
  * @param at Epoch ms.
  * @returns e.g. "just now", "5 min ago", "3 h ago", or a date.
@@ -178,8 +190,8 @@ function SignInCard() {
       setStep('code');
       setCode('');
       setCooldown(RESEND_SECONDS);
-    } catch {
-      setError("Couldn't send the code. Check the address and try again.");
+    } catch (e) {
+      setError(withCause("Couldn't send the code.", e));
     }
   };
 
@@ -189,9 +201,9 @@ function SignInCard() {
     try {
       await loginWithCode({ code: value, email: email.trim() });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
+    } catch (e) {
       setCode('');
-      setError("That code didn't work. Check it or send a new one.");
+      setError(withCause("That code didn't work. Check it or send a new one.", e));
     }
   };
 
