@@ -1,5 +1,5 @@
 /**
- * @file Execution status block for the payment card (spec §7.7): replaces the
+ * @file Execution status block for the payment card: replaces the
  * Confirm/Cancel buttons once a payment is in flight or settled, with the
  * transaction hash and explorer link where one exists.
  */

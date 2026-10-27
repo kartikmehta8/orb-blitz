@@ -1,5 +1,5 @@
 /**
- * @file Agent client: `POST /v1/agent` (spec §7.5) and turn planning.
+ * @file Agent client: `POST /v1/agent` and turn planning.
  *
  * The server response is untrusted. Only `{id, to, amountWei}` is taken from
  * each proposed intent; the full intent (provenance, caps, gas, fee, warnings)
@@ -82,7 +82,7 @@ const isClarification = (v: unknown): v is Clarification =>
   isRecord(v) && typeof v.question === 'string' && isStringArray(v.options);
 
 /**
- * Validates the response body against §9.1 (the fields the app uses).
+ * Validates the response body (only the fields the app uses).
  * @param v Parsed JSON.
  * @param requestId The ID we sent; the server must echo it.
  * @returns The response, or null when the shape is wrong.
@@ -145,7 +145,7 @@ async function askAgent(req: AgentRequest, signal: AbortSignal): Promise<AgentRe
 }
 
 /** What one user message produced. */
-export type TurnOutcome = {
+type TurnOutcome = {
   /** Shown as a system line above the reply (fallback or auth error). */
   notice: { text: string; tone: 'warning' | 'danger' } | null;
   reply: string;
@@ -153,7 +153,7 @@ export type TurnOutcome = {
   clarification: Clarification | null;
 };
 
-export type TurnInput = {
+type TurnInput = {
   /** Conversation so far, oldest first, ending with the new user message. */
   history: ChatTurn[];
   /** Context to share, or null when unavailable or excluded. */

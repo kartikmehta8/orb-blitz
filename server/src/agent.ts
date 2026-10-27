@@ -1,5 +1,5 @@
 /**
- * @file The Claude tool loop (spec §9.3) and the no-AI fallback (§9.6).
+ * @file The Claude tool loop and the no-AI fallback behind `POST /v1/agent`.
  *
  * Intents only ever come from `prepare_native_transfer` (agent path) or from
  * the shared `prepareTransfer` on a fallback-parser candidate. Model text is
@@ -18,7 +18,7 @@ import { errorCode, type ToolCtx } from './tools/tool';
 const MAX_ITERATIONS = 4;
 const CALL_TIMEOUT_MS = 15_000;
 const DEADLINE_MS = 25_000;
-// Spec says 800; adaptive thinking on current Haiku counts toward max_tokens, so leave headroom.
+// Replies are short, but adaptive thinking on current Haiku counts toward max_tokens, so leave headroom.
 const MAX_TOKENS = 1024;
 const MAX_REPLY_CHARS = 240;
 
@@ -28,6 +28,7 @@ export type CreateMessage = (
   options: { timeout: number; signal: AbortSignal },
 ) => Promise<Anthropic.Message>;
 
+/** What `runAgent` needs from the outside world. */
 export type AgentDeps = {
   /** Null when no API key is configured: every request uses the fallback parser. */
   createMessage: CreateMessage | null;
@@ -38,7 +39,7 @@ export type AgentDeps = {
 };
 
 /** The response plus error codes for the request log line. */
-export type AgentOutcome = { response: AgentResponse; errorCodes: string[] };
+type AgentOutcome = { response: AgentResponse; errorCodes: string[] };
 
 type Answer = { reply: string; intents: Intent[]; clarification: Clarification | null; fallback: boolean };
 
@@ -129,7 +130,11 @@ async function answerWithModel(
   }
 }
 
-/** Spec §9.3 loop. Returns the last assistant text, if any. */
+/**
+ * Calls the model up to `MAX_ITERATIONS` times, running requested tools between calls.
+ * Stops on a non-tool turn or after `ask_user`.
+ * @returns The last assistant text, if any.
+ */
 async function toolLoop(
   req: AgentRequest,
   createMessage: CreateMessage,
@@ -175,7 +180,7 @@ async function toolLoop(
   return lastText;
 }
 
-/** Spec §9.6: regex parse, then the same validation as `prepare_native_transfer`. */
+/** No-AI path: regex parse, then the same validation as `prepare_native_transfer`. */
 async function runFallback(req: AgentRequest, ctx: ToolCtx, errorCodes: string[]): Promise<Answer> {
   const parsed = parseFallback({ contextText: req.context?.text ?? null, userTexts: ctx.userTexts, perTxMon: ctx.perTxMon });
   if (parsed.kind === 'clarify') {
@@ -201,7 +206,7 @@ async function runFallback(req: AgentRequest, ctx: ToolCtx, errorCodes: string[]
   return { reply, intents: [result], clarification: null, fallback: true };
 }
 
-/** Default reply when the model produced no text (spec edge case 38). */
+/** Default reply when the model produced no text, e.g. the loop ran out of iterations. */
 function readyReply(intents: Intent[]): string {
   if (intents.length === 0) return 'Try rephrasing.';
   return intents.length === 1 ? 'Payment ready to confirm.' : `${intents.length} payments ready to confirm.`;

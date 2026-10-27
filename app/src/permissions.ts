@@ -1,7 +1,7 @@
 /**
- * @file Permission status and fix actions for the Bubble tab checklist (PLAN.md §7.3 item 3).
+ * @file Permission status and fix actions for the Orb tab setup checklist.
  *
- * `usePermissions()` snapshots every native permission plus the bubble's
+ * `usePermissions()` snapshots every native permission plus the orb's
  * running state, and re-reads them whenever the app returns to the foreground
  * (the user usually fixes things in system settings).
  */

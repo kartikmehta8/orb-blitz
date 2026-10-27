@@ -24,7 +24,7 @@ import { colors, radius, shadow, space, type as typeScale, type ColorToken, type
 export type IconName = ComponentProps<typeof Feather>['name'];
 
 /** Semantic tones shared by pills, tiles, dots and progress bars. */
-export type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'ink';
+export type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger';
 
 const TONES: Record<Tone, { bg: string; fg: ColorToken }> = {
   neutral: { bg: colors.surfaceMuted, fg: 'textSecondary' },
@@ -32,7 +32,6 @@ const TONES: Record<Tone, { bg: string; fg: ColorToken }> = {
   success: { bg: colors.successSoft, fg: 'success' },
   warning: { bg: colors.warningSoft, fg: 'warning' },
   danger: { bg: colors.dangerSoft, fg: 'danger' },
-  ink: { bg: colors.ink, fg: 'textInverse' },
 };
 
 type TextProps = RNTextProps & { variant?: TypeVariant; color?: ColorToken; align?: 'left' | 'center' | 'right' };
@@ -47,7 +46,7 @@ export function Text({ variant = 'body', color = 'text', align, style, ...rest }
   return <RNText {...rest} style={[typeScale[variant], { color: colors[color], textAlign: align }, style]} />;
 }
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'ink';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
 type ButtonProps = Omit<PressableProps, 'style' | 'children'> & {
   label: string;
@@ -62,8 +61,6 @@ const BUTTON_TONES: Record<ButtonVariant, { bg: string; pressed: string; fg: Col
   primary: { bg: colors.primary, pressed: colors.primaryPressed, fg: 'textInverse' },
   secondary: { bg: colors.surface, pressed: colors.surfaceMuted, fg: 'text', border: colors.borderStrong },
   ghost: { bg: 'transparent', pressed: colors.primarySoft, fg: 'primary' },
-  danger: { bg: colors.dangerSoft, pressed: colors.dangerPressed, fg: 'danger' },
-  ink: { bg: colors.ink, pressed: colors.inkRaised, fg: 'textInverse' },
 };
 
 /**
@@ -257,7 +254,7 @@ export function SectionHeader({
  * @param props.tone Fill tone (default `primary`).
  * @returns The bar, announced as a progressbar.
  */
-export function ProgressBar({ value, tone = 'primary' }: { value: number; tone?: Exclude<Tone, 'neutral' | 'ink'> }) {
+export function ProgressBar({ value, tone = 'primary' }: { value: number; tone?: Exclude<Tone, 'neutral'> }) {
   const pct = Math.round(Math.min(1, Math.max(0, value)) * 100);
   return (
     <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: pct }}>

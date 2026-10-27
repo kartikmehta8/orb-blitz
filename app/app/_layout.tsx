@@ -1,5 +1,5 @@
 /**
- * @file Root layout (spec §7.2): fonts (splash held until loaded), Privy with
+ * @file Root layout: fonts (splash held until loaded), Privy with
  * the embedded EVM wallet on Monad testnet, orb lifecycle, and a two-route
  * stack: the opaque `(tabs)` group (Wallet, Activity, Orb, Profile, or the
  * sign-in flow while signed out) and the transparent `ask` sheet over other apps.
@@ -10,7 +10,7 @@
  * no extra Linking handling here and no double navigation. `/` resolves to
  * `(tabs)/index`, the Wallet tab.
  */
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { RobotoMono_400Regular, RobotoMono_500Medium, RobotoMono_600SemiBold } from '@expo-google-fonts/roboto-mono';
 import { Feather } from '@expo/vector-icons';
 import { PrivyProvider } from '@privy-io/expo';
@@ -39,7 +39,6 @@ export default function RootLayout() {
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
-    Inter_700Bold,
     RobotoMono_400Regular,
     RobotoMono_500Medium,
     RobotoMono_600SemiBold,

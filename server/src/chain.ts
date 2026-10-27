@@ -9,7 +9,7 @@ import { CHAIN_ID, type ChainReader } from './intent';
 /** Public Monad testnet RPC, used when `MONAD_RPC_URL` is unset. */
 export const DEFAULT_RPC_URL = 'https://testnet-rpc.monad.xyz';
 /** MonadVision explorer base URL. */
-export const EXPLORER_URL = 'https://testnet.monadvision.com';
+const EXPLORER_URL = 'https://testnet.monadvision.com';
 
 /** Every chain call the tools make. A viem PublicClient satisfies it; tests pass a stub. */
 export type ChainClient = ChainReader & Pick<PublicClient, 'getTransactionCount' | 'getTransactionReceipt'>;
@@ -21,7 +21,7 @@ export type ChainClient = ChainReader & Pick<PublicClient, 'getTransactionCount'
  */
 export function createChainClient(rpcUrl: string): ChainClient {
   const chain = defineChain({ ...monadTestnet, id: CHAIN_ID, rpcUrls: { default: { http: [rpcUrl] } } });
-  // ponytail: viem backs off 300→600→1200 ms (spec says 300/900/2000); close enough for 3 read retries.
+  // ponytail: viem's built-in exponential backoff (300, 600, 1200 ms) is enough for 3 read retries.
   return createPublicClient({ chain, transport: http(rpcUrl, { retryCount: 3, retryDelay: 300 }) });
 }
 

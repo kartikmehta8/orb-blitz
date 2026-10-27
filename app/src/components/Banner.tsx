@@ -27,7 +27,7 @@ const TONES: Record<Tone, { bg: string; border: string; fg: 'text' | 'warning' |
  * @param props.children Optional actions (small buttons), shown on the right.
  * @returns A banner view announced as an alert.
  */
-export function Banner({
+function Banner({
   tone,
   icon,
   title,
@@ -60,7 +60,7 @@ export function Banner({
 }
 
 /**
- * Pending-payment banner (spec §7.8). Renders nothing unless the slot is pending or unknown.
+ * Pending-payment banner. Renders nothing unless the slot is pending or unknown.
  * @param props.status Result of `checkPending`.
  * @param props.onRecheck Re-checks the receipt.
  * @returns A banner, or null.

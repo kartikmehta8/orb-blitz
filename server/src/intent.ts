@@ -14,15 +14,18 @@ import { formatEther, getAddress, parseEther, zeroAddress, type Address, type Pu
 /** Monad testnet. The only chain this product ever touches. */
 export const CHAIN_ID = 10143 as const;
 /** Intents expire five minutes after creation. */
-export const INTENT_TTL_MS = 5 * 60_000;
+const INTENT_TTL_MS = 5 * 60_000;
 /** Gas for a plain EOA-to-EOA MON transfer. */
-export const EOA_GAS_LIMIT = 21_000n;
+const EOA_GAS_LIMIT = 21_000n;
 /** Max intents the agent may create per request. */
 export const MAX_INTENTS_PER_REQUEST = 3;
 
+/** Where captured context text came from. */
 export type ContextSource = 'screen' | 'clipboard';
+/** Where the recipient address was found: context, a user message, or both. */
 export type ProvenanceSource = ContextSource | 'user' | 'both';
 
+/** Soft warnings shown on the confirm card; none of them block the payment. */
 export type IntentWarning =
   | 'NEW_RECIPIENT'
   | 'RECIPIENT_IS_CONTRACT'
@@ -54,6 +57,7 @@ export type Intent = {
   parsedBy: 'agent' | 'fallback';
 };
 
+/** Hard failures from `prepareTransfer`; no intent is created. */
 export type TransferErrorCode =
   | 'INVALID_ADDRESS'
   | 'ZERO_ADDRESS'
@@ -65,13 +69,13 @@ export type TransferErrorCode =
   | 'RPC_ERROR';
 
 /** Error shape returned to the model and shown to the user (`message` is UX copy). */
-export type TransferError = { error: TransferErrorCode; message: string };
+type TransferError = { error: TransferErrorCode; message: string };
 
 /** Captured text from another app (screen) or the clipboard. */
 export type ScreenContextInput = { source: ContextSource; appLabel: string; text: string };
 
 /** Everything `prepareTransfer` needs. Amounts are MON decimal strings. */
-export type TransferRequest = {
+type TransferRequest = {
   id: string;
   to: string;
   amountMon: string;
@@ -155,7 +159,7 @@ export function shortAddress(address: string): string {
  * @param userTexts User-authored messages.
  * @returns The provenance source, or null if the address appears nowhere.
  */
-export function findProvenance(
+function findProvenance(
   address: Address,
   context: ScreenContextInput | null,
   userTexts: string[],
@@ -183,8 +187,8 @@ function amountAppears(wei: bigint, texts: string[]): boolean {
 const fail = (error: TransferErrorCode, message: string): TransferError => ({ error, message });
 
 /**
- * Validates a transfer request and builds an `Intent`. Checks run in the order
- * of spec §9.5: address → provenance → amount → caps → chain state → balance.
+ * Validates a transfer request and builds an `Intent`. Checks run cheapest and
+ * strictest first: address → provenance → amount → caps → chain state → balance.
  * @param client Read-only chain access.
  * @param req The transfer request.
  * @returns The intent, or a `TransferError` whose `message` is user-facing copy.

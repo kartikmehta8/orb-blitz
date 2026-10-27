@@ -1,6 +1,5 @@
 /**
- * @file Orb tab main card: on/off toggle for the floating orb
- * (PLAN.md §7.3 item 4, edge case 1).
+ * @file Orb tab main card: on/off toggle for the floating orb.
  *
  * Persists the user's choice with `setBubbleEnabled`, and is disabled with an
  * explanation (and a shortcut to grant it) while the overlay permission is

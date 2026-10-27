@@ -1,5 +1,5 @@
 /**
- * @file Intent execution (spec §7.7) as a hook driving one intent card:
+ * @file Intent execution as a hook driving one intent card:
  * local checks → biometric (or hold-to-confirm) → chain check → re-check →
  * sign and send through the Privy embedded wallet → persist pending → receipt.
  *
@@ -33,12 +33,12 @@ export type ExecState =
   | { status: 'cancelled' };
 
 /** A local check result; `retryable` marks transient failures (RPC, chain switch). */
-export type CardCheck = IntentCheck | { ok: false; reason: string; retryable: true };
+type CardCheck = IntentCheck | { ok: false; reason: string; retryable: true };
 
 /** How the user approves: system biometric/PIN prompt, or in-app 1.5 s hold. */
-export type AuthMode = 'biometric' | 'hold';
+type AuthMode = 'biometric' | 'hold';
 
-export type IntentExecution = {
+type IntentExecution = {
   state: ExecState;
   /** Null while the first check runs. */
   check: CardCheck | null;

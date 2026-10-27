@@ -1,5 +1,5 @@
 /**
- * @file Tool loop (§9.3), fallback (§9.6) and prompt building (§9.4) with a scripted model. No network.
+ * @file Tool loop, fallback and prompt building with a scripted model. No network.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it, vi } from 'vitest';

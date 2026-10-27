@@ -1,9 +1,9 @@
 /**
- * @file Bubble preference and app lifecycle glue (PLAN.md §7.2, edge cases 5 and 7).
+ * @file Orb preference and app lifecycle glue.
  *
- * The bubble is hidden while the app is in the foreground and shown again when
- * it goes to the background, if the user enabled it. All calls no-op when the
- * native module is missing (iOS, web, Expo Go).
+ * The orb is hidden while the app is in the foreground (so it never floats over
+ * Orb itself) and shown again when the app goes to the background, if the user
+ * enabled it. All calls no-op when the native module is missing (iOS, web, Expo Go).
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect } from 'react';
@@ -13,15 +13,15 @@ import { BubbleOverlay } from '../modules/bubble-overlay';
 const ENABLED_KEY = 'bubbleEnabled:v1';
 
 /**
- * Reads the user's "bubble on" preference.
- * @returns True if the user started the bubble and hasn't stopped it from the app.
+ * Reads the user's "orb on" preference.
+ * @returns True if the user started the orb and hasn't stopped it from the app.
  */
-export async function isBubbleEnabled(): Promise<boolean> {
+async function isBubbleEnabled(): Promise<boolean> {
   return (await AsyncStorage.getItem(ENABLED_KEY)) === '1';
 }
 
 /**
- * Persists the user's "bubble on" preference.
+ * Persists the user's "orb on" preference.
  * @param enabled New value.
  * @returns Resolves once stored.
  */
@@ -31,8 +31,9 @@ export async function setBubbleEnabled(enabled: boolean): Promise<void> {
 
 /**
  * Handles one AppState transition.
- * Active: hide the bubble, and restart the service if an OEM killed it (edge case 5).
- * Background: show the bubble if enabled.
+ * Active: hide the orb, and restart its service if an aggressive OEM battery
+ * manager killed it while the app was away.
+ * Background: show the orb if enabled.
  * @param state New AppState.
  * @returns Resolves when handled.
  */
@@ -45,17 +46,17 @@ async function onAppStateChange(state: AppStateStatus): Promise<void> {
       try {
         overlay.startBubble(); // Starts hidden; shown on the next background.
       } catch {
-        // Permission revoked between the check and the call (edge case 43); the Bubble tab shows the red row.
+        // Overlay permission was revoked between the check and the call; the Orb tab shows the red row.
       }
     }
   } else if (state === 'background' && (await isBubbleEnabled()) && AppState.currentState === 'background') {
-    // Re-check after the await so a quick return to the app doesn't leave the bubble over it.
+    // Re-check after the await so a quick return to the app doesn't leave the orb over it.
     overlay.showBubble();
   }
 }
 
 /**
- * Keeps the bubble in sync with the app's foreground state. Call once in the root layout.
+ * Keeps the orb in sync with the app's foreground state. Call once in the root layout.
  * @returns Nothing; subscribes for the component's lifetime.
  */
 export function useBubbleLifecycle(): void {

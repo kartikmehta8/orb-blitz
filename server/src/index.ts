@@ -1,5 +1,5 @@
 /**
- * @file HTTP entry point: `GET /health` and `POST /v1/agent` (spec §9.1) with
+ * @file HTTP entry point: `GET /health` and `POST /v1/agent` with
  * bearer auth, rate limiting, body limit, zod validation and one log line per
  * request. Run directly to start the server; tests import `createApp`.
  */
@@ -20,6 +20,7 @@ const BODY_LIMIT_BYTES = 32 * 1024;
 const RATE_LIMIT_PER_MIN = 30;
 const DEFAULT_MODEL = 'claude-haiku-5-5';
 
+/** Agent dependencies plus the HTTP layer's token, clock and log sink. */
 export type AppDeps = AgentDeps & {
   agentToken: string;
   /** Clock for the rate limiter; injectable for tests. */

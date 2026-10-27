@@ -1,5 +1,5 @@
 /**
- * @file HTTP hardening (§9.1): auth, body limit, validation, rate limit, health, and log hygiene.
+ * @file HTTP hardening: auth, body limit, validation, rate limit, health, and log hygiene.
  */
 import { describe, expect, it } from 'vitest';
 import { createApp, type AppDeps } from '../src/index';

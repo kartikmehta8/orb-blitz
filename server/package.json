@@ -1,5 +1,5 @@
 {
-  "name": "bubble-agent-server",
+  "name": "orb-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",

@@ -1,5 +1,5 @@
 /**
- * @file "Review payment" card (spec §7.6/§7.7): amount, full recipient,
+ * @file "Review payment" card: amount, full recipient,
  * source, fee/total/balance-after, plain-language warnings, expiry, then
  * Confirm/Cancel (or hold-to-confirm) and the execution status with explorer links.
  */
@@ -19,7 +19,7 @@ import { HoldButton } from './HoldButton';
 import { PaymentStatus } from './PaymentStatus';
 import { Button, Card, IconTile, Text, type IconName } from './ui';
 
-/** Plain-language copy for each warning (spec §8 where defined). */
+/** Plain-language copy for each warning. */
 const WARNING_COPY: Record<IntentWarning, string> = {
   NEW_RECIPIENT: "You haven't paid this address before. Check it matches.",
   RECIPIENT_IS_CONTRACT: 'This address is a contract. Funds may not be recoverable.',
@@ -195,7 +195,7 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
 
 /**
  * Label/value row with a hairline divider above it.
- * @param props.label Mono caps label.
+ * @param props.label Row label.
  * @param props.value Right-aligned value.
  * @param props.strong Emphasize the value (the total).
  * @returns A row.

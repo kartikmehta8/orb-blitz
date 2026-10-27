@@ -1,6 +1,6 @@
 /**
  * @file `prepare_native_transfer`: the only way an intent is created. A thin
- * wrapper over the shared `prepareTransfer` (spec §9.5) plus the per-request cap.
+ * wrapper over the shared `prepareTransfer` plus the per-request cap.
  */
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';

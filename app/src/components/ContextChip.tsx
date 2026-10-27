@@ -1,5 +1,5 @@
 /**
- * @file Context chip at the top of the Ask sheet (spec §7.4): shows what was
+ * @file Context chip at the top of the Ask sheet: shows what was
  * read, lets the user inspect the raw text and switch it off, or offers the
  * clipboard when the screen couldn't be read.
  */

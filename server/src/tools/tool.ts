@@ -23,7 +23,8 @@ export type ToolCtx = {
   clarification: Clarification | null;
 };
 
-export type ToolErrorCode = TransferErrorCode | 'BAD_TOOL_INPUT' | 'TOO_MANY_INTENTS';
+/** Error codes a tool can return: transfer validation codes plus dispatcher codes. */
+type ToolErrorCode = TransferErrorCode | 'BAD_TOOL_INPUT' | 'TOO_MANY_INTENTS';
 /** JSON object returned to the model. Errors carry `{ error, message }`. */
 export type ToolOutput = Record<string, unknown>;
 

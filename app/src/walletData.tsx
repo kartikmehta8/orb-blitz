@@ -14,7 +14,7 @@ import { getLimitState, type LimitState } from './limits';
 import type { PendingStatus } from './pendingTx';
 import { getActivity, type ActivityTx } from './storage';
 
-export type WalletData = {
+type WalletData = {
   address: Address | null;
   email: string | null;
   /** Balance in wei; null until loaded. */

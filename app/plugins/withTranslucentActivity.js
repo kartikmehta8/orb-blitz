@@ -1,5 +1,6 @@
 /**
- * @file Expo config plugin: makes MainActivity's window translucent (PLAN.md §6.6).
+ * @file Expo config plugin: makes MainActivity's window translucent, so the
+ * Ask sheet opened by the orb floats over the app the user was in.
  *
  * Adds `android:windowIsTranslucent=true` and a transparent
  * `android:windowBackground` to `AppTheme` (the theme MainActivity switches to
@@ -9,8 +10,9 @@
  * black backdrop behind `/ask`. Every non-ask screen must paint its own opaque
  * background.
  *
- * MainActivity's `launchMode="singleTask"` (edge case 8) already comes from
- * Expo's prebuild template, so the manifest is not touched here.
+ * MainActivity's `launchMode="singleTask"` (so repeated orb taps reuse one
+ * activity instead of stacking new ones) already comes from Expo's prebuild
+ * template, so the manifest is not touched here.
  */
 const { AndroidConfig, withAndroidStyles } = require('expo/config-plugins');
 

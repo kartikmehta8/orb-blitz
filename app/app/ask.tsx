@@ -1,10 +1,10 @@
 /**
- * @file Ask sheet (spec §7.4): opened by the orb via `bubbleagent://ask?ctx=<id>`
+ * @file Ask sheet: opened by the orb via `bubbleagent://ask?ctx=<id>`
  * over whatever app the user was in (the activity is translucent).
  *
  * On mount it consumes the screen context once, gates on the Privy session and
  * resumes any pending payment. Dismissing (scrim, close, hardware back) aborts
- * the in-flight request, resets the stack to Home and moves the task to back.
+ * the in-flight request, resets the stack to the Wallet tab and moves the task to back.
  */
 import { Feather } from '@expo/vector-icons';
 import type { NavigationProp, ParamListBase } from '@react-navigation/native';
@@ -102,7 +102,7 @@ function consumeContext(ctxId: string | undefined): ContextState {
 /**
  * Request-shaped context (drops UI-only fields so a strict server schema accepts it).
  * @param c Captured context.
- * @returns The §7.5 `context` object.
+ * @returns The `context` object of the agent request.
  */
 function toAgentContext(c: CapturedContext): AgentContext {
   return {

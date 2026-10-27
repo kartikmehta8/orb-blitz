@@ -1,5 +1,5 @@
 /**
- * @file Spec §12.1 fallback parser cases.
+ * @file Offline fallback parser cases.
  */
 import { describe, expect, it } from 'vitest';
 import { parseFallback } from '../src/fallbackParser';

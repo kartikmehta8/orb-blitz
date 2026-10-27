@@ -4,10 +4,10 @@
  * `BubbleOverlay` is null on iOS/web and in Expo Go (module not linked), so
  * every caller guards with `BubbleOverlay?.…`. Kotlin lives in `android/`.
  */
-import { requireOptionalNativeModule } from 'expo-modules-core';
+import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 
-/** Text captured from the foreground app at the moment the bubble was tapped. */
+/** Text captured from the foreground app at the moment the orb was tapped. */
 export type ScreenContext = {
   id: string;
   packageName: string;

@@ -1,5 +1,5 @@
 /**
- * @file Orb tab (spec §7.3 items 3 and 4): the floating orb toggle, the
+ * @file Orb tab: the floating orb toggle, the
  * permission checklist, a three-step "How it works" and the OEM autostart tip.
  * Permissions are re-read whenever the app returns to the foreground.
  */

@@ -15,7 +15,7 @@ import { publicClient } from './chain';
 import { toChecksumAddress } from './intent';
 import { checkPending, type PendingStatus } from './pendingTx';
 
-export type WalletState = {
+type WalletState = {
   /** Privy has restored (or failed to restore) the session. */
   ready: boolean;
   user: PrivyUser | null;
@@ -76,7 +76,7 @@ export function useBalance(address: Address | null): {
 }
 
 /**
- * Resumes the pending-payment slot on mount (spec §7.8).
+ * Resumes the pending-payment slot on mount.
  * @returns The slot status and a re-check function.
  */
 export function usePendingTx(): { status: PendingStatus; recheck: () => Promise<PendingStatus> } {

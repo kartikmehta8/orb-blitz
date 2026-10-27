@@ -1,6 +1,6 @@
 /**
- * @file Full-screen sign-in shown instead of the tabs while signed out
- * (spec §7.3 item 1). Three calm views with a short fade-and-slide between
+ * @file Full-screen sign-in shown instead of the tabs while signed out.
+ * Three calm views with a short fade-and-slide between
  * them: welcome, email, then the 6-digit Privy email code (auto-submits, with
  * a resend countdown and Privy's error reason surfaced). Hardware back steps
  * back through the views.

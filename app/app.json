@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Orb",
-    "slug": "bubble-agent",
+    "slug": "orb",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
@@ -23,14 +23,29 @@
     },
     "plugins": [
       "expo-router",
-      ["expo-build-properties", { "android": { "compileSdkVersion": 35 } }],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35
+          }
+        }
+      ],
       "expo-secure-store",
       "expo-web-browser",
-      ["expo-local-authentication", { "faceIDPermission": "Confirm payments with Face ID." }],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Confirm payments with Face ID."
+        }
+      ],
       "./plugins/withTranslucentActivity"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "platforms": [
+      "android"
+    ]
   }
 }

@@ -12,7 +12,7 @@ import type { ToolCtx } from '../src/tools/tool';
 export const WALLET = getAddress('0x1111111111111111111111111111111111111111');
 export const RECIPIENT = getAddress('0xabcdefabcdefabcdefabcdefabcdefabcdef1234');
 export const OTHER = getAddress('0x9876543210987654321098765432109876543210');
-export const MAX_FEE = 100_000_000_000n; // 100 gwei
+const MAX_FEE = 100_000_000_000n; // 100 gwei
 
 type ChainOpts = { code?: Hex; balance?: bigint; gas?: bigint; fail?: boolean };
 

@@ -1,5 +1,5 @@
 /**
- * @file Orb tab "Setup" checklist (PLAN.md §7.3 item 3, edge cases 1, 3, 4, 5, 6).
+ * @file Orb tab "Setup" checklist.
  *
  * Progress header, one row per permission with a tinted icon and either a
  * green check or an Allow/Fix button, and a collapsible restricted-settings

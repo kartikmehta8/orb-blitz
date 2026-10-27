@@ -17,14 +17,16 @@ const ADDRESS = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g;
 const AMOUNT = /(?:^|[^\d.])(\d+(?:\.\d{1,18})?)\s*(?:MON|mon|Mon)\b/g;
 const FIAT = /[₹$]|\b(?:INR|USD|rs\.?|rupees?|dollars?)\b/i;
 const AMOUNT_CHIPS = ['0.1', '0.5', '1'];
-// Payment verbs. Without one, the parser never proposes a transfer (spec §9.4 rule 3).
+// Payment verbs. Without one in a user message, the parser never proposes a transfer: screen text alone cannot trigger a payment.
 const PAY_REQUEST = /\b(?:pay|send|transfer|tip|split|settle|give|refund)\b/i;
 
-export type FallbackResult =
+/** A transfer candidate (still unvalidated) or a question with tappable options. */
+type FallbackResult =
   | { kind: 'candidate'; to: string; amountMon: string }
   | { kind: 'clarify'; question: string; options: string[] };
 
-export type FallbackInput = {
+/** What the parser reads: context, user messages and the per-tx cap. */
+type FallbackInput = {
   /** Screen or clipboard text, or null when excluded/unavailable. */
   contextText: string | null;
   /** User messages, oldest first. */
@@ -38,7 +40,7 @@ export type FallbackInput = {
  * @param text Source text (zero-width characters already stripped).
  * @returns Addresses in order of appearance.
  */
-export function extractAddresses(text: string): string[] {
+function extractAddresses(text: string): string[] {
   const seen = new Map<string, string>();
   for (const a of text.match(ADDRESS) ?? []) if (!seen.has(a.toLowerCase())) seen.set(a.toLowerCase(), a);
   return [...seen.values()];
@@ -49,7 +51,7 @@ export function extractAddresses(text: string): string[] {
  * @param text Source text (zero-width characters already stripped).
  * @returns Amount strings as written, e.g. ["2.5"].
  */
-export function extractAmounts(text: string): string[] {
+function extractAmounts(text: string): string[] {
   const seen = new Map<bigint, string>();
   for (const m of text.matchAll(AMOUNT)) {
     const wei = parseMon(m[1]);

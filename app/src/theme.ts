@@ -5,7 +5,7 @@
  * #6E54FF, lavender #DDD7FE and ink #0E091C on an off-white canvas. Inter for
  * all UI text; Roboto Mono only for addresses and hashes.
  *
- * Light mode only (product decision, see NOTES.md). Every screen and component
+ * Light mode only, by product decision. Every screen and component
  * takes values from here; no hex codes or font names elsewhere.
  */
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
@@ -18,16 +18,14 @@ export const colors = {
   border: '#ECEAF1',
   borderStrong: '#DCD8E6',
 
-  /** Monad ink: primary text and the wallet hero card. */
+  /** Monad ink: primary text. */
   text: '#0E091C',
   textSecondary: '#5B5770',
   textTertiary: '#8F8BA3',
   textInverse: '#FFFFFF',
-  /** Secondary text on ink surfaces. */
-  textOnInk: '#B9B3D1',
 
+  /** Monad ink, for the dark QR modules. */
   ink: '#0E091C',
-  inkRaised: '#1E1636',
 
   /** Monad purple. */
   primary: '#6E54FF',
@@ -43,8 +41,6 @@ export const colors = {
   warningBorder: '#FFDCA8',
   danger: '#D6364A',
   dangerSoft: '#FDECEE',
-  dangerPressed: '#FAD9DE',
-
 
   /** Dimmed backdrop behind the ask sheet. */
   scrim: 'rgba(14, 9, 28, 0.42)',
@@ -57,7 +53,6 @@ export const fonts = {
   regular: 'Inter_400Regular',
   medium: 'Inter_500Medium',
   semibold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
   mono: 'RobotoMono_400Regular',
   monoMedium: 'RobotoMono_500Medium',
   monoBold: 'RobotoMono_600SemiBold',
@@ -96,10 +91,6 @@ export const shadow = {
   card: Platform.select<ViewStyle>({
     android: { elevation: 0 },
     default: { shadowColor: '#0E091C', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 } },
-  }),
-  raised: Platform.select<ViewStyle>({
-    android: { elevation: 6, shadowColor: '#2A1A80' },
-    default: { shadowColor: '#2A1A80', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
   }),
   sheet: Platform.select<ViewStyle>({
     android: { elevation: 16 },

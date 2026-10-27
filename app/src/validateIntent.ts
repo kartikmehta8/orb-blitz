@@ -1,16 +1,15 @@
 /**
  * @file Local intent checks run before Confirm is enabled and again right
- * before signing (spec §7.6, checks 1 to 7), plus the local `NEW_RECIPIENT` flag.
+ * before signing, plus the local `NEW_RECIPIENT` flag.
  *
  * Pure: the caller fetches balance, limits and the executed flag. The wallet's
- * live chain check (part of check 1) needs the provider, so it lives in
- * `execute.ts`.
+ * live chain check needs the provider, so it lives in `execute.ts`.
  */
 import { formatEther, zeroAddress } from 'viem';
 import { CHAIN_ID, formatMon, toChecksumAddress, type Intent } from './intent';
 
 /** Fresh device state the checks run against. */
-export type CheckInput = {
+type CheckInput = {
   balanceWei: bigint;
   perTxWei: bigint;
   /** Daily cap minus today's confirmed spend. */
@@ -26,7 +25,7 @@ export type CheckInput = {
 export type IntentCheck = { ok: true } | { ok: false; reason: string };
 
 /** Wei amounts derived from an intent. */
-export type IntentCost = { amount: bigint; fee: bigint; total: bigint };
+type IntentCost = { amount: bigint; fee: bigint; total: bigint };
 
 /**
  * Parses an intent's wei fields.
@@ -46,7 +45,8 @@ export function intentCost(intent: Intent): IntentCost | null {
 const fail = (reason: string): IntentCheck => ({ ok: false, reason });
 
 /**
- * Runs local checks 1 to 7 in spec order.
+ * Runs the local checks in order: chain, address, amount, caps, balance,
+ * expiry, replay and the single pending slot.
  * @param intent Intent to check.
  * @param input Fresh balance, caps, executed flag and clock.
  * @returns ok, or the first failing reason.

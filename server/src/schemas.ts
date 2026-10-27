@@ -1,5 +1,5 @@
 /**
- * @file Boundary schemas for `POST /v1/agent` (spec §7.5 request, §9.1 response).
+ * @file Boundary schemas for the `POST /v1/agent` request and response.
  * Everything that enters the server is parsed here first.
  */
 import { z } from 'zod';
@@ -24,6 +24,7 @@ const WalletAddress = z.string().transform((value, ctx) => {
   return address;
 });
 
+/** Request body sent by the app. */
 export const AgentRequestSchema = z.object({
   requestId: z.string().min(1).max(100),
   messages: z
@@ -80,6 +81,7 @@ const IntentSchema: z.ZodType<Intent> = z.object({
 const ClarificationSchema = z.object({ question: z.string(), options: z.array(z.string()) });
 export type Clarification = z.infer<typeof ClarificationSchema>;
 
+/** Response body returned to the app. */
 export const AgentResponseSchema = z.object({
   requestId: z.string(),
   reply: z.string(),

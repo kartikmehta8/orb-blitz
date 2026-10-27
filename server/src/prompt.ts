@@ -1,10 +1,11 @@
 /**
- * @file System prompt (spec §9.4, verbatim) and conversion of the app's chat
+ * @file System prompt and conversion of the app's chat
  * into Messages API turns, with captured screen text fenced as untrusted data.
  */
 import type Anthropic from '@anthropic-ai/sdk';
 import type { AgentRequest } from './schemas';
 
+/** Sent as `system` on every model call. Runtime content: wording changes alter agent behaviour. */
 export const SYSTEM_PROMPT = `You are Orb, a payments assistant running in a floating orb on the user's Android phone.
 You act ONLY on Monad testnet (chain 10143) and ONLY with native MON.
 
@@ -29,7 +30,7 @@ Rules:
  * @param text Untrusted text.
  * @returns Text with `&`, `<`, `>` and `"` entity-escaped.
  */
-export function escapeMarkup(text: string): string {
+function escapeMarkup(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 

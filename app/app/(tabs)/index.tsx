@@ -1,7 +1,7 @@
 /**
- * @file Wallet tab (spec §7.3 items 1, 2 and 6): minimal header (Orb mark and
- * wordmark, network badge, profile shortcut), the balance card with quick actions,
- * the pending-payment banner and the three latest payments. Pull to refresh.
+ * @file Wallet tab: minimal header (Orb mark and wordmark, network badge,
+ * profile shortcut), the balance card with quick actions, the pending-payment
+ * banner and the three latest payments. Pull to refresh.
  */
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';

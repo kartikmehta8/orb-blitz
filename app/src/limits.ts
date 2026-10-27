@@ -52,7 +52,7 @@ function normalize(value: unknown, fallback: string): string {
  * Loads caps, replacing missing or invalid values with defaults.
  * @returns Valid caps.
  */
-export async function loadLimits(): Promise<Limits> {
+async function loadLimits(): Promise<Limits> {
   const stored = await readJson(KEYS.limits, isRecord);
   return {
     perTxMon: normalize(stored?.perTxMon, DEFAULT_LIMITS.perTxMon),
@@ -88,7 +88,7 @@ function spendKey(date = new Date()): string {
  * Total confirmed spend today.
  * @returns Wei.
  */
-export async function getSpentToday(): Promise<bigint> {
+async function getSpentToday(): Promise<bigint> {
   return BigInt((await readJson(spendKey(), isWeiString)) ?? '0');
 }
 

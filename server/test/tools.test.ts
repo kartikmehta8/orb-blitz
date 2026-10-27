@@ -1,5 +1,5 @@
 /**
- * @file Spec §12.1 `prepare_native_transfer` cases, plus the other tools and the dispatcher.
+ * @file `prepare_native_transfer` validation cases, plus the other tools and the dispatcher.
  * All chain calls go to a stub.
  */
 import { zeroAddress } from 'viem';

@@ -1,6 +1,6 @@
 /**
- * @file Profile "Spending limits" section (PLAN.md §7.3 item 5): per-payment and
- * daily caps, each edited in a bottom sheet with presets, plus today's spend.
+ * @file Profile "Spending limits" section: per-payment and daily caps, each
+ * edited in a bottom sheet with presets, plus today's spend.
  */
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';

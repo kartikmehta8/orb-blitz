@@ -1,5 +1,5 @@
 /**
- * @file Pending transaction persistence and resume (spec §7.8).
+ * @file Pending transaction persistence and resume.
  *
  * A sent transaction is saved to `pending:v1` before waiting for its receipt,
  * so a dismissed sheet or killed app can finish the bookkeeping later. There
@@ -8,7 +8,7 @@
 import { TransactionReceiptNotFoundError, type Address, type Hash, type PublicClient } from 'viem';
 import { toChecksumAddress } from './intent';
 import { addSpend } from './limits';
-import { addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readJson, removeKey, addActivity, writeJson } from './storage';
+import { addActivity, addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readJson, removeKey, writeJson } from './storage';
 
 /** A sent, unconfirmed payment. Chain data only, never screen text. */
 export type PendingTx = { hash: Hash; intentId: string; to: Address; amountWei: string; sentAt: number };
@@ -19,7 +19,7 @@ export type PendingStatus =
   | { kind: 'confirmed' | 'failed' | 'pending' | 'unknown'; tx: PendingTx };
 
 /** After this long without a receipt, give up and point the user at the explorer. */
-export const PENDING_STALE_MS = 10 * 60_000;
+const PENDING_STALE_MS = 10 * 60_000;
 
 const isPendingTx = (v: unknown): v is PendingTx =>
   isRecord(v) &&

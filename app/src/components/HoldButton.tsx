@@ -1,5 +1,5 @@
 /**
- * @file Hold-to-confirm button (spec §7.7): the in-app approval used when no
+ * @file Hold-to-confirm button: the in-app approval used when no
  * biometric or device PIN is enrolled. A darker purple fill sweeps across the
  * button over 1.5 s; releasing early rewinds it.
  */

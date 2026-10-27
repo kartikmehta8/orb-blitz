@@ -1,5 +1,5 @@
 /**
- * @file Stdio MCP server (spec §14) exposing the same tool functions the phone
+ * @file Stdio MCP server exposing the same tool functions the phone
  * agent uses. It only proposes intents; nothing here can sign or send.
  *
  * Env: `MCP_WALLET_ADDRESS` (required), `MCP_PER_TX_MON` (default 1),
@@ -54,7 +54,7 @@ const toResult = (out: ToolOutput) => ({
   isError: errorCode(out) !== null,
 });
 
-const server = new McpServer({ name: 'bubble-agent', version: '1.0.0' });
+const server = new McpServer({ name: 'orb', version: '1.0.0' });
 
 for (const tool of [getWalletBalance, inspectAddress, getTxStatus]) {
   server.registerTool(
@@ -82,4 +82,4 @@ server.registerTool(
 );
 
 await server.connect(new StdioServerTransport());
-console.error(`bubble-agent MCP ready (wallet ${wallet.slice(0, 4)}…${wallet.slice(-4)})`);
+console.error(`Orb MCP ready (wallet ${wallet.slice(0, 4)}…${wallet.slice(-4)})`);

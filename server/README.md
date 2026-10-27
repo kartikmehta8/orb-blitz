@@ -11,8 +11,8 @@ cp .env.example .env      # set ANTHROPIC_API_KEY and AGENT_TOKEN
 npm install
 npm run dev               # tsx watch, http://localhost:8787
 npm test                  # vitest, no network
+npm run typecheck
 npm run build && npm start
-ngrok http --url=<your-domain>.ngrok-free.dev 8787   # expose to the phone (stable free dev domain)
 ```
 
 Node 20.12+. `.env` in the working directory is loaded on start.
@@ -22,15 +22,23 @@ Node 20.12+. `.env` in the working directory is loaded on start.
 | `ANTHROPIC_API_KEY` | (none) | Without it every request uses the regex fallback parser. |
 | `ANTHROPIC_MODEL` | `claude-haiku-5-5` | `claude-sonnet-5-5` if extraction quality is poor. |
 | `AGENT_TOKEN` | (required) | Bearer token shared with the app. Refuses to start if unset, or `change-me` with `NODE_ENV=production`. |
-| `MONAD_RPC_URL` | `https://testnet-rpc.monad.xyz` | Read-only; reads retry 3× with backoff. |
+| `MONAD_RPC_URL` | `https://testnet-rpc.monad.xyz` | Read-only; reads retry 3 times with backoff. |
 | `PORT` | `8787` | |
+
+### Tunnel to the phone
+
+Expose the local server with a stable free ngrok dev domain, then set the app's `EXPO_PUBLIC_AGENT_URL` to it:
+
+```bash
+ngrok http --url=<your-domain>.ngrok-free.dev 8787
+```
 
 ## API
 
 - `GET /health` → `{ ok: true, chainId: 10143, model }` (no auth)
 - `POST /v1/agent` with `Authorization: Bearer $AGENT_TOKEN` → `{ requestId, reply, intents, clarification, meta }`
 
-Errors: 401 bad/missing token, 429 over 30 req/min, 413 body over 32 KB, 400 `{ error: 'BAD_REQUEST', message }`
+Errors: 401 bad or missing token, 429 over 30 req/min, 413 body over 32 KB, 400 `{ error: 'BAD_REQUEST', message }`
 on schema failure, 500 `{ error: 'INTERNAL' }`. Model failure, no API key, or the 25 s deadline fall back to the
 regex parser (`meta.fallback: true`); the HTTP status stays 200.
 
@@ -53,10 +61,13 @@ Expected: one intent, `provenance.source = "screen"`, a one- or two-sentence rep
 `npm run build`, then add to `claude_desktop_config.json`:
 
 ```json
-{ "mcpServers": { "bubble-agent": { "command": "node", "args": ["/abs/path/server/dist/mcp.js"],
+{ "mcpServers": { "orb": { "command": "node", "args": ["/abs/path/server/dist/mcp.js"],
   "env": { "MONAD_RPC_URL": "https://testnet-rpc.monad.xyz", "MCP_WALLET_ADDRESS": "0x...",
            "MCP_PER_TX_MON": "1", "MCP_DAILY_MON": "5" } } } }
 ```
+
+`MCP_WALLET_ADDRESS` is required; `MCP_PER_TX_MON` defaults to 1 and `MCP_DAILY_MON` to 5 (a static cap with
+no spend tracking; the phone re-checks real daily spend before signing).
 
 Tools: `get_wallet_balance`, `inspect_address`, `get_tx_status`, `prepare_native_transfer` (takes an extra
 `context` string: the text containing the recipient, used for the provenance check). It returns intent JSON
