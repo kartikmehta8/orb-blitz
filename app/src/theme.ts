@@ -33,8 +33,6 @@ export const colors = {
   /** Monad purple. */
   primary: '#6E54FF',
   primaryPressed: '#5A40F0',
-  /** Light end of the brand-mark gradient. */
-  primaryLight: '#8B76FF',
   primarySoft: '#F1EFFF',
   /** Monad lavender. */
   primarySoftBorder: '#DDD7FE',
@@ -48,10 +46,6 @@ export const colors = {
   dangerSoft: '#FDECEE',
   dangerPressed: '#FAD9DE',
 
-  /** Monad secondary palette: decoration only (glows, illustrations), never for state. */
-  accentCyan: '#85E6FF',
-  accentPink: '#FF8EE4',
-  accentOrange: '#FFAE45',
 
   /** Dimmed backdrop behind the ask sheet. */
   scrim: 'rgba(14, 9, 28, 0.42)',

@@ -1,5 +1,5 @@
 /**
- * @file Home "Bubble" section: on/off toggle for the floating bubble
+ * @file Bubble tab main card: on/off toggle for the floating bubble
  * (PLAN.md §7.3 item 4, edge case 1).
  *
  * Persists the user's choice with `setBubbleEnabled`, and is disabled with an
@@ -14,7 +14,7 @@ import { setBubbleEnabled } from '../bubble';
 import { fixPermission, type PermissionStatus } from '../permissions';
 import { colors, radius, space } from '../theme';
 import { BrandMark } from './BrandMark';
-import { Button, Card, SectionHeader, StatusDot, Text, Toggle, type IconName } from './ui';
+import { Button, Card, StatusDot, Text, Toggle, type IconName } from './ui';
 
 const NO_OVERLAY_MESSAGE = 'Allow "Display over other apps" to turn on the bubble.';
 
@@ -25,10 +25,10 @@ const TIPS: { icon: IconName; label: string }[] = [
 ];
 
 /**
- * Bubble section.
+ * Bubble on/off card.
  * @param props.status Permission snapshot (includes whether the service runs); null while loading.
  * @param props.refresh Re-reads the snapshot.
- * @returns The section, or null when the native module is unavailable or status is loading.
+ * @returns The card, or null when the native module is unavailable or status is loading.
  */
 export function BubbleCard({ status, refresh }: { status: PermissionStatus | null; refresh: () => void }) {
   const [running, setRunning] = useState(false);
@@ -65,52 +65,49 @@ export function BubbleCard({ status, refresh }: { status: PermissionStatus | nul
   const blocked = !running && !status.overlay;
 
   return (
-    <View>
-      <SectionHeader title="Bubble" />
-      <Card style={styles.card}>
-        <View style={styles.main}>
-          <View style={styles.preview}>
-            <BrandMark size={32} />
-          </View>
-          <View style={styles.text}>
-            <Text variant="bodyStrong">Floating bubble</Text>
-            <View style={styles.status}>
-              {running ? <StatusDot tone="success" /> : null}
-              <Text variant="caption" color={running ? 'success' : 'textSecondary'}>
-                {running ? 'Active over other apps' : 'Off'}
-              </Text>
-            </View>
-          </View>
-          <Toggle value={running} onValueChange={(on) => void toggle(on)} label="Floating bubble" disabled={blocked} />
+    <Card style={styles.card}>
+      <View style={styles.main}>
+        <View style={styles.preview}>
+          <BrandMark size={32} />
         </View>
-
-        {blocked ? (
-          <View style={styles.notice}>
-            <Feather name="lock" size={14} color={colors.warning} />
-            <Text variant="caption" color="textSecondary" style={styles.flex}>
-              {NO_OVERLAY_MESSAGE}
+        <View style={styles.text}>
+          <Text variant="bodyStrong">Floating bubble</Text>
+          <View style={styles.status}>
+            {running ? <StatusDot tone="success" /> : null}
+            <Text variant="caption" color={running ? 'success' : 'textSecondary'}>
+              {running ? 'Active over other apps' : 'Off'}
             </Text>
-            <Button size="sm" label="Allow" accessibilityLabel="Allow display over other apps" onPress={() => void fixPermission('overlay').then(refresh)} />
           </View>
-        ) : null}
-        {error ? (
-          <Text variant="caption" color="danger" accessibilityLiveRegion="polite">
-            {error}
-          </Text>
-        ) : null}
-
-        <View style={styles.tips} accessible accessibilityLabel={TIPS.map((t) => t.label).join(', ')}>
-          {TIPS.map((tip) => (
-            <View key={tip.label} style={styles.tip}>
-              <Feather name={tip.icon} size={13} color={colors.textTertiary} />
-              <Text variant="caption" color="textTertiary" numberOfLines={1}>
-                {tip.label}
-              </Text>
-            </View>
-          ))}
         </View>
-      </Card>
-    </View>
+        <Toggle value={running} onValueChange={(on) => void toggle(on)} label="Floating bubble" disabled={blocked} />
+      </View>
+
+      {blocked ? (
+        <View style={styles.notice}>
+          <Feather name="lock" size={14} color={colors.warning} />
+          <Text variant="caption" color="textSecondary" style={styles.flex}>
+            {NO_OVERLAY_MESSAGE}
+          </Text>
+          <Button size="sm" label="Allow" accessibilityLabel="Allow display over other apps" onPress={() => void fixPermission('overlay').then(refresh)} />
+        </View>
+      ) : null}
+      {error ? (
+        <Text variant="caption" color="danger" accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
+
+      <View style={styles.tips} accessible accessibilityLabel={TIPS.map((t) => t.label).join(', ')}>
+        {TIPS.map((tip) => (
+          <View key={tip.label} style={styles.tip}>
+            <Feather name={tip.icon} size={13} color={colors.textTertiary} />
+            <Text variant="caption" color="textTertiary" numberOfLines={1}>
+              {tip.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </Card>
   );
 }
 

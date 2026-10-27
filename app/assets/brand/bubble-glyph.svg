@@ -1,4 +1,0 @@
-<!-- Bubble Agent glyph (single colour): white bubble with the spark knocked out, for purple or dark backgrounds. Same 48-unit grid as bubble-mark.svg. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-  <path fill="#FFFFFF" fill-rule="evenodd" d="M18 2H30A16 16 0 0 1 46 18V30A16 16 0 0 1 30 46H6A4 4 0 0 1 2 42V18A16 16 0 0 1 18 2Z M24 12C25.6 18.4 29.6 22.4 36 24C29.6 25.6 25.6 29.6 24 36C22.4 29.6 18.4 25.6 12 24C18.4 22.4 22.4 18.4 24 12Z"/>
-</svg>

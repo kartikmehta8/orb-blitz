@@ -1,6 +1,6 @@
 /**
  * @file Local intent checks run before Confirm is enabled and again right
- * before signing (spec §7.6, checks 1–7), plus the local `NEW_RECIPIENT` flag.
+ * before signing (spec §7.6, checks 1 to 7), plus the local `NEW_RECIPIENT` flag.
  *
  * Pure: the caller fetches balance, limits and the executed flag. The wallet's
  * live chain check (part of check 1) needs the provider, so it lives in
@@ -46,7 +46,7 @@ export function intentCost(intent: Intent): IntentCost | null {
 const fail = (reason: string): IntentCheck => ({ ok: false, reason });
 
 /**
- * Runs local checks 1–7 in spec order.
+ * Runs local checks 1 to 7 in spec order.
  * @param intent Intent to check.
  * @param input Fresh balance, caps, executed flag and clock.
  * @returns ok, or the first failing reason.

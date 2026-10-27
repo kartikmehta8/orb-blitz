@@ -1,5 +1,5 @@
 /**
- * @file Permission status and fix actions for the Home checklist (PLAN.md §7.3 item 3).
+ * @file Permission status and fix actions for the Bubble tab checklist (PLAN.md §7.3 item 3).
  *
  * `usePermissions()` snapshots every native permission plus the bubble's
  * running state, and re-reads them whenever the app returns to the foreground

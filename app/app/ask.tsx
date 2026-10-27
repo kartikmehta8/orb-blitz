@@ -251,7 +251,6 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
     }
   };
 
-
   const lastTurn = turns[turns.length - 1];
   const canSend = !!input.trim() && !busy;
   // A review card is tall; give the sheet more room once one is on screen.

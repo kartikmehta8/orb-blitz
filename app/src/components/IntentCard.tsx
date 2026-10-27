@@ -76,6 +76,8 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
   const confirmBlocked = !check?.ok || walletStatus !== 'ready' || authMode === null;
   const short = balanceWei !== null && cost !== null && balanceWei < cost.total;
   const amount = intent.amountDisplay.replace(/\s*MON$/, '');
+  // Ellipsis while the balance loads; never a negative balance.
+  const balanceAfter = short ? 'Not enough MON' : balanceWei !== null && cost ? formatMon(balanceWei - cost.total) : '…';
 
   if (declined) {
     return (
@@ -122,8 +124,8 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
 
       <View>
         <DetailRow label="Network fee" value={intent.estFeeDisplay} />
-        <DetailRow label="Total" value={cost ? formatMon(cost.total, 6) : '—'} strong />
-        <DetailRow label="Balance after" value={balanceWei !== null && cost && !short ? formatMon(balanceWei - cost.total) : '—'} />
+        <DetailRow label="Total" value={cost ? formatMon(cost.total, 6) : '…'} strong />
+        <DetailRow label="Balance after" value={balanceAfter} />
       </View>
 
       {intent.warnings.length ? (

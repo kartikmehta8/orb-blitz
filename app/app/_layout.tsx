@@ -1,12 +1,14 @@
 /**
  * @file Root layout (spec §7.2): fonts (splash held until loaded), Privy with
  * the embedded EVM wallet on Monad testnet, bubble lifecycle, and a two-route
- * stack: opaque `index` (Home) and transparent `ask` (sheet over other apps).
+ * stack: the opaque `(tabs)` group (Wallet, Activity, Bubble, Profile, or the
+ * sign-in flow while signed out) and the transparent `ask` sheet over other apps.
  *
- * Deep links: expo-router maps `bubbleagent://ask?ctx=…` to `/ask` on both
- * cold start (initial URL → state `[ask]`) and warm start (URL event →
+ * Deep links: expo-router maps `bubbleagent://ask?ctx=...` to `/ask` on both
+ * cold start (initial URL, state `[ask]`) and warm start (URL event,
  * NAVIGATE). `ask.tsx` collapses the warm-start stack to `[ask]`, so there is
- * no extra Linking handling here and no double navigation.
+ * no extra Linking handling here and no double navigation. `/` resolves to
+ * `(tabs)/index`, the Wallet tab.
  */
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { RobotoMono_400Regular, RobotoMono_500Medium, RobotoMono_600SemiBold } from '@expo-google-fonts/roboto-mono';
@@ -62,7 +64,7 @@ export default function RootLayout() {
           config={{ embedded: { ethereum: { createOnLogin: 'users-without-wallets' } } }}
         >
           <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" options={{ contentStyle: { backgroundColor: colors.canvas } }} />
+            <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: colors.canvas } }} />
             {/* The sheet animates itself (scrim fade + spring), so the screen transition is off. */}
             <Stack.Screen name="ask" options={{ contentStyle: { backgroundColor: 'transparent' }, animation: 'none' }} />
           </Stack>

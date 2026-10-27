@@ -1,5 +1,5 @@
 /**
- * @file Modal bottom sheet used by Home (Receive, account, limit editor):
+ * @file Modal bottom sheet used by the tabs (Receive, limit editor):
  * fading scrim, spring-in panel, grab handle, title row with a close button.
  * Back button, scrim tap and the close button all call `onClose`.
  */

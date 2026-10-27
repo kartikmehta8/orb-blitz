@@ -1,5 +1,5 @@
 /**
- * @file Small display formatters shared by Home components.
+ * @file Small display formatters shared by the tab components.
  */
 import { formatMon } from '../intent';
 

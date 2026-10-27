@@ -90,7 +90,7 @@ export async function settlePending(
 }
 
 /**
- * Resumes whatever is in the pending slot (Home and Ask mount).
+ * Resumes whatever is in the pending slot (tabs layout and Ask mount).
  * @param client Read-only chain access.
  * @returns The slot's status, or `none` when empty.
  */

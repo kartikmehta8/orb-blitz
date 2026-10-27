@@ -1,8 +1,14 @@
 /**
- * @file React hooks shared by Home and the Ask sheet: Privy session and
+ * @file React hooks shared by the tabs and the Ask sheet: Privy session and
  * embedded wallet, MON balance, and the pending-payment slot.
  */
-import { useEmbeddedEthereumWallet, usePrivy, type ConnectedEthereumWallet, type PrivyUser } from '@privy-io/expo';
+import {
+  useEmbeddedEthereumWallet,
+  usePrivy,
+  type ConnectedEthereumWallet,
+  type PrivyEmailAccount,
+  type PrivyUser,
+} from '@privy-io/expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Address } from 'viem';
 import { publicClient } from './chain';
@@ -16,6 +22,8 @@ export type WalletState = {
   /** First embedded Ethereum wallet; null until created. */
   wallet: ConnectedEthereumWallet | null;
   address: Address | null;
+  /** Linked email, or null for non-email logins. */
+  email: string | null;
 };
 
 /**
@@ -26,7 +34,8 @@ export function useWallet(): WalletState {
   const { user, isReady } = usePrivy();
   const { wallets } = useEmbeddedEthereumWallet();
   const wallet = (user && wallets[0]) || null;
-  return { ready: isReady, user, wallet, address: wallet ? toChecksumAddress(wallet.address) : null };
+  const email = user?.linked_accounts.find((a): a is PrivyEmailAccount => a.type === 'email')?.address ?? null;
+  return { ready: isReady, user, wallet, address: wallet ? toChecksumAddress(wallet.address) : null, email };
 }
 
 /**

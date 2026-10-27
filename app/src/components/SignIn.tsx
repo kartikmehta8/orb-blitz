@@ -1,27 +1,30 @@
 /**
- * @file Signed-out onboarding (spec §7.3 item 1): brand intro, three feature
- * rows, then Privy email OTP sign-in (email → 6-digit code, with resend
- * countdown and Privy's error reason surfaced).
+ * @file Full-screen sign-in shown instead of the tabs while signed out
+ * (spec §7.3 item 1). Two clear steps with a step indicator: 1. email,
+ * 2. the 6-digit code (Privy email OTP), with a resend countdown and Privy's
+ * error reason surfaced.
  */
 import { Feather } from '@expo/vector-icons';
 import { useLoginWithEmail } from '@privy-io/expo';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, HIT, radius, space, type as typeScale } from '../theme';
 import { BrandMark } from './BrandMark';
-import { Button, Card, IconTile, Text, type IconName } from './ui';
+import { Button, Text, type IconName } from './ui';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
-const HALO = 168;
+const STEPS = 2;
+/** Visual size of the back button; `hitSlop` pads it to a 48-pt target. */
+const BACK = 40;
 
-const FEATURES: { icon: IconName; title: string; body: string }[] = [
-  { icon: 'message-circle', title: 'Tap the bubble in any app', body: 'It reads the address on screen when you ask.' },
-  { icon: 'zap', title: 'Settles on Monad in ~1s', body: 'Testnet MON, straight from your own wallet.' },
-  { icon: 'shield', title: 'You confirm every payment', body: 'Limits you set are enforced on this phone.' },
+const VALUES: { icon: IconName; text: string }[] = [
+  { icon: 'message-circle', text: 'Tap the bubble in any app to pay an address on screen' },
+  { icon: 'shield', text: 'You approve every payment with your fingerprint or PIN' },
+  { icon: 'zap', text: 'Monad testnet only. No real funds.' },
 ];
 
 /**
@@ -48,6 +51,26 @@ function FieldError({ text }: { text: string }) {
       <Text variant="caption" color="danger" style={styles.flex}>
         {text}
       </Text>
+    </View>
+  );
+}
+
+/**
+ * "Step N of 2" label over a two-segment bar.
+ * @param props.step Current step, 1-based.
+ * @returns The indicator, announced as one element.
+ */
+function StepIndicator({ step }: { step: number }) {
+  return (
+    <View style={styles.steps} accessible accessibilityLabel={`Step ${step} of ${STEPS}`}>
+      <Text variant="overline" color="primary">
+        Step {step} of {STEPS}
+      </Text>
+      <View style={styles.segments}>
+        {Array.from({ length: STEPS }, (_, i) => (
+          <View key={i} style={[styles.segment, i < step && styles.segmentDone]} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -98,32 +121,11 @@ function CodeBoxes({ value, onChange, invalid }: { value: string; onChange: (v: 
 }
 
 /**
- * Brand mark on a soft lavender halo.
- * @returns The halo illustration.
- */
-function BrandHalo() {
-  return (
-    <View style={styles.halo}>
-      <Svg width={HALO} height={HALO} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <RadialGradient id="halo" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={colors.primarySoftBorder} stopOpacity={1} />
-            <Stop offset="0.55" stopColor={colors.primarySoft} stopOpacity={0.9} />
-            <Stop offset="1" stopColor={colors.canvas} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Rect width={HALO} height={HALO} fill="url(#halo)" />
-      </Svg>
-      <BrandMark size={64} />
-    </View>
-  );
-}
-
-/**
- * Signed-out screen: intro plus the email OTP card.
- * @returns The onboarding content.
+ * Signed-out screen: brand bar, step indicator, then the email or code step.
+ * @returns The full-screen sign-in flow.
  */
 export function SignIn() {
+  const insets = useSafeAreaInsets();
   const { sendCode, loginWithCode, state } = useLoginWithEmail();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -132,6 +134,7 @@ export function SignIn() {
   const [cooldown, setCooldown] = useState(0);
   const sending = state.status === 'sending-code';
   const verifying = state.status === 'submitting-code';
+  const onCodeStep = step === 'code';
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -175,111 +178,140 @@ export function SignIn() {
     if (digits.length === CODE_LENGTH) void submitCode(digits);
   };
 
+  const backToEmail = () => {
+    setStep('email');
+    setCode('');
+    setError(null);
+  };
+
   return (
-    <View style={styles.root}>
-      <View style={styles.intro}>
-        <BrandHalo />
-        <Text variant="title" align="center" accessibilityRole="header" style={styles.headline}>
-          Pay anyone on your screen
-        </Text>
-        <Text variant="body" color="textSecondary" align="center">
-          A floating assistant that turns what you’re looking at into a Monad payment you approve.
-        </Text>
-      </View>
+    <KeyboardAvoidingView behavior="padding" style={styles.screen}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space.md, paddingBottom: insets.bottom + space.xxl }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.brand}>
+          {onCodeStep ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to email"
+              onPress={backToEmail}
+              hitSlop={(HIT - BACK) / 2}
+              style={({ pressed }) => [styles.back, pressed && styles.backPressed]}
+            >
+              <Feather name="arrow-left" size={20} color={colors.text} />
+            </Pressable>
+          ) : null}
+          <BrandMark size={28} />
+          <Text variant="headline">Bubble Agent</Text>
+        </View>
 
-      <View style={styles.features}>
-        {FEATURES.map((f) => (
-          <View key={f.icon} style={styles.feature} accessible accessibilityLabel={`${f.title}. ${f.body}`}>
-            <IconTile icon={f.icon} tone="primary" size={40} />
-            <View style={styles.flex}>
-              <Text variant="bodyStrong">{f.title}</Text>
-              <Text variant="caption" color="textSecondary">
-                {f.body}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <Card style={styles.card}>
-        {step === 'email' ? (
-          <>
-            <View style={styles.cardHead}>
-              <Text variant="headline">Sign in with email</Text>
-              <Text variant="callout" color="textSecondary">
-                {"We'll email you a 6-digit code. A Monad testnet wallet is created for you on first sign-in."}
-              </Text>
-            </View>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="emailAddress"
-              returnKeyType="send"
-              onSubmitEditing={() => void requestCode()}
-              accessibilityLabel="Email address"
-              style={[styles.field, error ? styles.fieldError : null]}
-            />
-            {error ? <FieldError text={error} /> : null}
-            <Button label="Continue" loading={sending} disabled={!email.trim()} onPress={() => void requestCode()} />
-          </>
-        ) : (
-          <>
-            <View style={styles.cardHead}>
-              <Text variant="headline">Check your email</Text>
-              <Text variant="callout" color="textSecondary">
-                Enter the 6-digit code sent to{' '}
-                <Text variant="callout" color="text">
+        <View style={styles.form}>
+          <StepIndicator step={onCodeStep ? 2 : 1} />
+          <View style={styles.head}>
+            <Text variant="title" accessibilityRole="header">
+              {onCodeStep ? 'Enter the code' : 'Sign in with email'}
+            </Text>
+            {onCodeStep ? (
+              <Text variant="body" color="textSecondary">
+                Sent to{' '}
+                <Text variant="bodyStrong" color="text">
                   {email.trim()}
                 </Text>
               </Text>
-            </View>
-            <CodeBoxes value={code} onChange={onCodeChange} invalid={!!error} />
-            {error ? <FieldError text={error} /> : null}
-            <Button label="Verify" loading={verifying} disabled={code.length !== CODE_LENGTH} onPress={() => void submitCode(code)} />
-            <View style={styles.links}>
-              <Button
-                size="sm"
-                variant="ghost"
-                label={cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
-                disabled={cooldown > 0 || sending}
-                onPress={() => void requestCode()}
-              />
-              <Button
-                size="sm"
-                variant="ghost"
-                label="Use a different email"
-                onPress={() => {
-                  setStep('email');
-                  setCode('');
-                  setError(null);
-                }}
-              />
-            </View>
-          </>
+            ) : (
+              <Text variant="body" color="textSecondary">
+                {"We'll send a 6-digit code. Your wallet is created automatically on first sign in."}
+              </Text>
+            )}
+          </View>
+
+          {onCodeStep ? (
+            <>
+              <CodeBoxes value={code} onChange={onCodeChange} invalid={!!error} />
+              {error ? <FieldError text={error} /> : null}
+              <Button label="Verify" loading={verifying} disabled={code.length !== CODE_LENGTH} onPress={() => void submitCode(code)} />
+              <View style={styles.links}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  label={cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+                  disabled={cooldown > 0 || sending}
+                  onPress={() => void requestCode()}
+                />
+                <Button size="sm" variant="ghost" label="Use a different email" onPress={backToEmail} />
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text variant="captionStrong" color="textSecondary">
+                  Email
+                </Text>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  returnKeyType="send"
+                  onSubmitEditing={() => void requestCode()}
+                  accessibilityLabel="Email address"
+                  style={[styles.field, error ? styles.fieldError : null]}
+                />
+              </View>
+              {error ? <FieldError text={error} /> : null}
+              <Button label="Continue" loading={sending} disabled={!email.trim()} onPress={() => void requestCode()} />
+            </>
+          )}
+        </View>
+
+        {onCodeStep ? null : (
+          <View style={styles.values}>
+            {VALUES.map((v) => (
+              <View key={v.icon} style={styles.value}>
+                <Feather name={v.icon} size={16} color={colors.primary} />
+                <Text variant="caption" color="textSecondary" style={styles.flex}>
+                  {v.text}
+                </Text>
+              </View>
+            ))}
+          </View>
         )}
-      </Card>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const BOX_HEIGHT = 56;
 
 const styles = StyleSheet.create({
-  root: { gap: space.xxl },
+  screen: { flex: 1, backgroundColor: colors.canvas },
+  content: { flexGrow: 1, paddingHorizontal: space.xl, gap: space.xxxl },
   flex: { flex: 1 },
-  intro: { alignItems: 'center', gap: space.sm, paddingHorizontal: space.sm },
-  halo: { width: HALO, height: HALO, alignItems: 'center', justifyContent: 'center', marginBottom: -space.lg },
-  headline: { marginTop: space.xs },
-  features: { gap: space.lg, paddingHorizontal: space.xs },
-  feature: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  card: { gap: space.lg, padding: space.xl },
-  cardHead: { gap: space.xs },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: HIT },
+  back: {
+    width: BACK,
+    height: BACK,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+    marginRight: space.xs,
+  },
+  backPressed: { backgroundColor: colors.border },
+  form: { gap: space.xl },
+  steps: { gap: space.sm },
+  segments: { flexDirection: 'row', gap: space.xs },
+  segment: { flex: 1, height: 4, borderRadius: radius.pill, backgroundColor: colors.border },
+  segmentDone: { backgroundColor: colors.primary },
+  head: { gap: space.sm },
+  fieldGroup: { gap: space.sm },
   field: {
     ...typeScale.body,
     minHeight: HIT + space.xs,
@@ -300,14 +332,22 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxActive: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.surface },
+  boxActive: { borderColor: colors.primary, borderWidth: 2 },
   boxError: { borderColor: colors.danger },
   digit: { fontFamily: fonts.monoMedium, fontVariant: ['tabular-nums'] },
   // Covers the boxes so taps, paste and autofill reach the real input; invisible.
   hiddenInput: { ...StyleSheet.absoluteFillObject, opacity: 0, color: 'transparent' },
   links: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: space.sm },
+  values: {
+    marginTop: 'auto',
+    gap: space.md,
+    paddingTop: space.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  value: { flexDirection: 'row', alignItems: 'center', gap: space.md },
 });

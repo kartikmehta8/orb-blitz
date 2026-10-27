@@ -253,7 +253,7 @@ export function SectionHeader({
 
 /**
  * Thin rounded progress bar.
- * @param props.value Fraction 0–1 (clamped).
+ * @param props.value Fraction from 0 to 1 (clamped).
  * @param props.tone Fill tone (default `primary`).
  * @returns The bar, announced as a progressbar.
  */

@@ -1,7 +1,7 @@
 /**
- * @file Home "Activity" section: recent payments sent from the app, newest
- * first, with the in-flight payment (if any) on top. Tapping a row opens the
- * transaction on the explorer.
+ * @file Payment list used by the Wallet tab (latest few) and the Activity tab
+ * (all): payments sent from the app, newest first, with the in-flight payment
+ * (if any) on top. Tapping a row opens the transaction on the explorer.
  */
 import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 import { txUrl } from '../config';
@@ -10,7 +10,7 @@ import type { PendingStatus } from '../pendingTx';
 import type { ActivityTx } from '../storage';
 import { colors, space } from '../theme';
 import { monValue, timeAgo } from './format';
-import { Card, IconTile, ListRow, Pill, SectionHeader, Text, type Tone } from './ui';
+import { Button, Card, IconTile, ListRow, Pill, Text, type Tone } from './ui';
 
 type RowStatus = ActivityTx['status'] | 'pending' | 'unknown';
 type Row = Omit<ActivityTx, 'status'> & { status: RowStatus };
@@ -67,38 +67,54 @@ function ActivityRow({ row, divider }: { row: Row; divider: boolean }) {
 }
 
 /**
- * Activity section.
+ * Payment list card.
  * @param props.items Finished payments, newest first; null while loading.
  * @param props.pending Pending-slot status, shown as the top row when in flight.
- * @returns Section header plus a card of rows or an empty state.
+ * @param props.limit Show at most this many rows (default all).
+ * @param props.emptyAction Optional button under the empty state.
+ * @returns A card of rows, a loading card or an empty state.
  */
-export function ActivityList({ items, pending }: { items: ActivityTx[] | null; pending: PendingStatus }) {
-  const rows = items ? toRows(items, pending) : null;
+export function ActivityList({
+  items,
+  pending,
+  limit,
+  emptyAction,
+}: {
+  items: ActivityTx[] | null;
+  pending: PendingStatus;
+  limit?: number;
+  emptyAction?: { label: string; onPress: () => void };
+}) {
+  const rows = items ? toRows(items, pending).slice(0, limit) : null;
+  if (!rows) {
+    return (
+      <Card style={styles.empty}>
+        <ActivityIndicator color={colors.primary} />
+      </Card>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <Card style={styles.empty}>
+        <IconTile icon="send" tone="primary" size={48} />
+        <Text variant="headline" align="center">
+          No payments yet
+        </Text>
+        <Text variant="callout" color="textSecondary" align="center">
+          Payments you confirm from the bubble show up here.
+        </Text>
+        {emptyAction ? (
+          <Button size="sm" variant="secondary" label={emptyAction.label} onPress={emptyAction.onPress} style={styles.emptyAction} />
+        ) : null}
+      </Card>
+    );
+  }
   return (
-    <View>
-      <SectionHeader title="Activity" meta={rows?.length ? `${rows.length} recent` : undefined} />
-      {!rows ? (
-        <Card style={styles.empty}>
-          <ActivityIndicator color={colors.primary} />
-        </Card>
-      ) : rows.length === 0 ? (
-        <Card style={styles.empty}>
-          <IconTile icon="send" tone="primary" size={48} />
-          <Text variant="headline" align="center">
-            No payments yet
-          </Text>
-          <Text variant="callout" color="textSecondary" align="center">
-            Turn on the bubble, open any app and tap it to pay an address on your screen.
-          </Text>
-        </Card>
-      ) : (
-        <Card style={styles.list}>
-          {rows.map((row, i) => (
-            <ActivityRow key={row.hash} row={row} divider={i > 0} />
-          ))}
-        </Card>
-      )}
-    </View>
+    <Card style={styles.list}>
+      {rows.map((row, i) => (
+        <ActivityRow key={row.hash} row={row} divider={i > 0} />
+      ))}
+    </Card>
   );
 }
 
@@ -106,4 +122,5 @@ const styles = StyleSheet.create({
   list: { paddingVertical: space.xs },
   trailing: { alignItems: 'flex-end', gap: space.xs },
   empty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xxl, paddingHorizontal: space.xxl },
+  emptyAction: { marginTop: space.sm },
 });

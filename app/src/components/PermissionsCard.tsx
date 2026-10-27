@@ -1,10 +1,10 @@
 /**
- * @file Home "Setup" checklist (PLAN.md §7.3 item 3, edge cases 1, 3, 4, 5, 6).
+ * @file Bubble tab "Setup" checklist (PLAN.md §7.3 item 3, edge cases 1, 3, 4, 5, 6).
  *
  * Progress header, one row per permission with a tinted icon and either a
- * green check or an Allow/Fix button, and collapsible hints (restricted
- * settings, OEM autostart). Collapses to one "All set" row once everything is
- * granted. Overlay is required; the rest are recommended.
+ * green check or an Allow/Fix button, and a collapsible restricted-settings
+ * hint. Collapses to one "All set" row once everything is granted. Overlay is
+ * required; the rest are recommended. Also exports the OEM autostart tip.
  */
 import { Feather } from '@expo/vector-icons';
 import { useState, type ReactNode } from 'react';
@@ -92,6 +92,20 @@ function Hint({ label, children }: { label: string; children: ReactNode }) {
       </Pressable>
       {open ? <View style={styles.hintBody}>{children}</View> : null}
     </View>
+  );
+}
+
+/**
+ * Collapsible autostart tip for OEM skins that kill background services.
+ * @returns The disclosure row.
+ */
+export function OemTip() {
+  return (
+    <Hint label="Xiaomi, Redmi, POCO, Realme, Oppo or Vivo?">
+      <Text variant="caption" color="textSecondary">
+        {OEM_TIP}
+      </Text>
+    </Hint>
   );
 }
 
@@ -189,30 +203,22 @@ export function PermissionsCard({ status, refresh }: { status: PermissionStatus 
               );
             })
           : null}
-        {!allSet ? (
+        {accessibilityMissing ? (
           <View style={styles.hints}>
-            {accessibilityMissing ? (
-              <Hint label="Screen reader switch greyed out?">
-                <Text variant="caption" color="textSecondary">
-                  Android restricts it for apps installed from a file. Open App info, tap ⋮, then Allow restricted
-                  settings.
-                </Text>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel="Open App info"
-                  hitSlop={space.md}
-                  onPress={() => void Linking.openSettings()}
-                >
-                  <Text variant="button" color="primary">
-                    Open App info
-                  </Text>
-                </Pressable>
-              </Hint>
-            ) : null}
-            <Hint label="Xiaomi, Redmi, POCO, Realme, Oppo or Vivo?">
+            <Hint label="Screen reader switch greyed out?">
               <Text variant="caption" color="textSecondary">
-                {OEM_TIP}
+                Android restricts it for apps installed from a file. Open App info, tap ⋮, then Allow restricted settings.
               </Text>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Open App info"
+                hitSlop={space.md}
+                onPress={() => void Linking.openSettings()}
+              >
+                <Text variant="button" color="primary">
+                  Open App info
+                </Text>
+              </Pressable>
             </Hint>
           </View>
         ) : null}
@@ -226,7 +232,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   pressed: { opacity: 0.6 },
   progress: { paddingTop: space.md, paddingBottom: space.xs },
-  hints: { gap: space.xs, paddingTop: space.xs, paddingBottom: space.xs },
+  hints: { paddingVertical: space.xs },
   hint: { borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   hintToggle: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: HIT, paddingHorizontal: space.md },
   hintBody: { gap: space.sm, paddingHorizontal: space.md, paddingBottom: space.md, alignItems: 'flex-start' },

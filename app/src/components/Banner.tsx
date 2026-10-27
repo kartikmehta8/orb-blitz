@@ -1,6 +1,6 @@
 /**
  * @file Inline status banner with optional actions, plus the pending-payment
- * banner shared by Home and the Ask sheet. Tones map to the semantic palette only.
+ * banner shared by the Wallet tab and the Ask sheet. Tones map to the semantic palette only.
  */
 import type { ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';

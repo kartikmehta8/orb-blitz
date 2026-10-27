@@ -45,7 +45,7 @@ async function onAppStateChange(state: AppStateStatus): Promise<void> {
       try {
         overlay.startBubble(); // Starts hidden; shown on the next background.
       } catch {
-        // Permission revoked between the check and the call (edge case 43); Home shows the red row.
+        // Permission revoked between the check and the call (edge case 43); the Bubble tab shows the red row.
       }
     }
   } else if (state === 'background' && (await isBubbleEnabled()) && AppState.currentState === 'background') {

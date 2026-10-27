@@ -21,7 +21,7 @@ export const KEYS = {
 /** Pre-activity single-entry key, migrated into `activity:v1` on first read. */
 const LEGACY_LAST_TX_KEY = 'lastTx:v1';
 
-/** Most recent payments kept for Home's Activity list. */
+/** Most recent payments kept for the Activity tab. */
 const MAX_ACTIVITY = 20;
 
 /** Most executed intent IDs kept; intents expire after 5 min, so this is generous. */
@@ -135,7 +135,7 @@ export async function markExecuted(id: string): Promise<void> {
   if (!ids.includes(id)) await writeJson(KEYS.executed, [...ids, id].slice(-MAX_EXECUTED));
 }
 
-/** A finished payment, shown in Home's Activity list. Chain data only, never screen text. */
+/** A finished payment, shown in the Activity tab. Chain data only, never screen text. */
 export type ActivityTx = { hash: Hash; to: Address; amountWei: string; status: 'confirmed' | 'failed'; at: number };
 
 const isActivityTx = (v: unknown): v is ActivityTx =>
@@ -175,8 +175,3 @@ export async function addActivity(tx: ActivityTx): Promise<void> {
   const rest = (await getActivity()).filter((t) => t.hash !== tx.hash);
   await writeJson(KEYS.activity, [tx, ...rest].slice(0, MAX_ACTIVITY));
 }
-
-/**
- * Former single-slot writer, kept so `pendingTx.ts` needs no change.
- * Now appends to the activity list.
- */

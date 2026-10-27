@@ -94,7 +94,7 @@ const MON_DECIMAL = /^\d+(\.\d{1,18})?$/;
 /**
  * Removes zero-width characters that chat apps insert into long tokens.
  * @param text Raw text.
- * @returns Text without U+200B–U+200D and U+FEFF.
+ * @returns Text without U+200B to U+200D and U+FEFF.
  */
 export function stripZeroWidth(text: string): string {
   return text.replace(ZERO_WIDTH, '');
