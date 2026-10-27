@@ -34,7 +34,7 @@
   - Set "create embedded wallets on login" to EVM.
   - Add `com.bubbleagent.app` as an allowed Android app identifier.
 - An Anthropic API key. Optional: without one, the server uses the basic parser.
-- `cloudflared`, to reach your laptop from the phone
+- `ngrok` (free account), to reach your laptop from the phone. Your free dev domain is under ngrok dashboard → Domains, and it stays the same across restarts, so the URL baked into the app never goes stale.
 
 ## 2. Run the agent server
 
@@ -44,7 +44,7 @@ npm install
 cp .env.example .env        # set ANTHROPIC_API_KEY and a long random AGENT_TOKEN
 npm test                    # 79 tests
 npm run dev                 # http://localhost:8787
-cloudflared tunnel --url http://localhost:8787   # note the https URL it prints
+ngrok http --url=<your-domain>.ngrok-free.dev 8787   # in a second terminal
 ```
 
 Smoke test: `curl -s localhost:8787/health`. The full curl request is in [server/README.md](server/README.md).
@@ -54,7 +54,7 @@ Smoke test: `curl -s localhost:8787/health`. The full curl request is in [server
 ```bash
 cd app
 pnpm install
-cp .env.example .env        # Privy IDs, tunnel URL as EXPO_PUBLIC_AGENT_URL, same AGENT_TOKEN
+cp .env.example .env        # Privy IDs, https://<your-domain>.ngrok-free.dev as EXPO_PUBLIC_AGENT_URL, same AGENT_TOKEN
 pnpm android                # expo run:android: prebuilds android/ and installs a dev build
 ```
 

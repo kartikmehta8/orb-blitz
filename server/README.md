@@ -12,7 +12,7 @@ npm install
 npm run dev               # tsx watch, http://localhost:8787
 npm test                  # vitest, no network
 npm run build && npm start
-cloudflared tunnel --url http://localhost:8787   # expose to the phone
+ngrok http --url=<your-domain>.ngrok-free.dev 8787   # expose to the phone (stable free dev domain)
 ```
 
 Node 20.12+. `.env` in the working directory is loaded on start.
