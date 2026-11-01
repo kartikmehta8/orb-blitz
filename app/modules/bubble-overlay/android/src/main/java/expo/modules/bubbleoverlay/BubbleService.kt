@@ -55,6 +55,9 @@ class BubbleService : Service() {
     const val ACTION_SHOW = "expo.modules.bubbleoverlay.SHOW"
     const val ACTION_HIDE = "expo.modules.bubbleoverlay.HIDE"
     const val ACTION_STOP = "expo.modules.bubbleoverlay.STOP"
+    const val ACTION_SET_STATE = "expo.modules.bubbleoverlay.SET_STATE"
+    /** Intent extra for [ACTION_SET_STATE]: idle, capturing, thinking, success, or error. */
+    const val EXTRA_STATE = "state"
 
     /** True between onCreate and onDestroy. */
     @Volatile
@@ -76,6 +79,8 @@ class BubbleService : Service() {
     private const val SNAP_ANIM_MS = 200L
     // ponytail: fixed vertical margins approximate status/nav bars; read WindowInsets if the orb ever overlaps them.
     private const val VERTICAL_MARGIN_DP = 48
+    /** How long a success or error tint stays before returning to idle. */
+    private const val ORB_REVERT_MS = 1500L
     private const val TAP_DEBOUNCE_MS = 800L
     private const val LONG_PRESS_MS = 600L
     private const val ASK_URI = "bubbleagent://ask"
@@ -91,6 +96,8 @@ class BubbleService : Service() {
   private var snapAnimator: ValueAnimator? = null
   private var snappedRight = true
   private var lastTapAt = 0L
+  /** Posted revert of success/error back to idle. Cleared when a newer state arrives. */
+  private var revertOrb: Runnable? = null
 
   override fun onBind(intent: Intent?): IBinder? = null
 
@@ -105,6 +112,7 @@ class BubbleService : Service() {
     when (intent?.action) {
       ACTION_STOP -> stopSelf()
       ACTION_HIDE -> setBubbleVisible(false)
+      ACTION_SET_STATE -> applyOrbState(intent.getStringExtra(EXTRA_STATE))
       else -> setBubbleVisible(true) // ACTION_SHOW, or a null intent on a START_STICKY restart.
     }
     return START_STICKY
@@ -222,6 +230,25 @@ class BubbleService : Service() {
       true
     } catch (e: RuntimeException) {
       false
+    }
+  }
+
+  /**
+   * Paints [state] through [applyOrbStateVisual]. `success` and `error` return
+   * to `idle` after [ORB_REVERT_MS]. A newer call cancels that revert.
+   * Does not change whether the window is visible.
+   * @param state One of idle, capturing, thinking, success, error. Anything else is ignored.
+   */
+  private fun applyOrbState(state: String?) {
+    if (state != "idle" && state != "capturing" && state != "thinking" && state != "success" && state != "error") return
+    revertOrb?.let { handler.removeCallbacks(it) }
+    revertOrb = null
+    val discView = disc ?: return
+    applyOrbStateVisual(discView, state)
+    if (state == "success" || state == "error") {
+      val revert = Runnable { applyOrbState("idle") }
+      revertOrb = revert
+      handler.postDelayed(revert, ORB_REVERT_MS)
     }
   }
 

@@ -11,9 +11,14 @@ import {
 } from '@privy-io/expo';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Address } from 'viem';
+import { registerAccessTokenProvider } from './accessToken';
 import { publicClient } from './chain';
+import { OrbApiError, toOrbApiError } from './errors';
 import { toChecksumAddress } from './intent';
+import { getOrbState, subscribeOrbState } from './orbBridge';
+import type { OrbState } from './orbState';
 import { checkPending, type PendingStatus } from './pendingTx';
+import { initialPendingView, reducePendingView, type PendingPhase, type PendingView } from './pendingView';
 
 type WalletState = {
   /** Privy has restored (or failed to restore) the session. */
@@ -31,8 +36,11 @@ type WalletState = {
  * @returns Session and wallet state.
  */
 export function useWallet(): WalletState {
-  const { user, isReady } = usePrivy();
+  const { user, isReady, getAccessToken } = usePrivy();
   const { wallets } = useEmbeddedEthereumWallet();
+  useEffect(() => {
+    registerAccessTokenProvider(getAccessToken);
+  }, [getAccessToken]);
   const wallet = (user && wallets[0]) || null;
   const email = user?.linked_accounts.find((a): a is PrivyEmailAccount => a.type === 'email')?.address ?? null;
   return { ready: isReady, user, wallet, address: wallet ? toChecksumAddress(wallet.address) : null, email };
@@ -75,22 +83,59 @@ export function useBalance(address: Address | null): {
   return { balance, error, refresh };
 }
 
+/** What `usePendingTx` returns. `status` is the chain result screens already read. */
+export type PendingTxState = {
+  /** Latest chain result. Stays put when a check throws. Starts as `{ kind: 'none' }` only because nothing has loaded. */
+  status: PendingStatus;
+  /** `loading` until the first check finishes. A thrown check is `error`, never `none`. */
+  phase: PendingPhase;
+  /** The failure behind `phase === 'error'`. */
+  error: OrbApiError | null;
+  /**
+   * Checks the slot again. Does not throw: a failure sets `phase` to `error`
+   * and returns the previous `status`.
+   */
+  recheck: () => Promise<PendingStatus>;
+  /** Same as `recheck`. Named for the error-state retry control. */
+  retry: () => Promise<PendingStatus>;
+};
+
 /**
  * Resumes the pending-payment slot on mount.
- * @returns The slot status and a re-check function.
+ * @returns Chain status, the explicit phase, and a retry that does not throw.
  */
-export function usePendingTx(): { status: PendingStatus; recheck: () => Promise<PendingStatus> } {
-  const [status, setStatus] = useState<PendingStatus>({ kind: 'none' });
+export function usePendingTx(): PendingTxState {
+  const viewRef = useRef<PendingView>(initialPendingView);
+  const [view, setView] = useState<PendingView>(initialPendingView);
 
   const recheck = useCallback(async () => {
-    const next = await checkPending(publicClient).catch((): PendingStatus => ({ kind: 'none' }));
-    setStatus(next);
-    return next;
+    try {
+      const status = await checkPending(publicClient);
+      const next = reducePendingView(viewRef.current, { type: 'ok', status });
+      viewRef.current = next;
+      setView(next);
+      return status;
+    } catch (e) {
+      const next = reducePendingView(viewRef.current, { type: 'err', error: toOrbApiError(e) });
+      viewRef.current = next;
+      setView(next);
+      return next.status;
+    }
   }, []);
 
   useEffect(() => {
     void recheck();
   }, [recheck]);
 
-  return { status, recheck };
+  return { status: view.status, phase: view.phase, error: view.error, recheck, retry: recheck };
+}
+
+/**
+ * Current orb visual state. `success` and `error` return to `idle` after 1.5s.
+ * @returns The latest state from `setOrbState`.
+ */
+export function useOrbState(): OrbState {
+  const [state, setState] = useState<OrbState>(getOrbState);
+  useEffect(() => subscribeOrbState(setState), []);
+  return state;
 }

@@ -77,6 +77,13 @@ const IntentSchema: z.ZodType<Intent> = z.object({
   createdAt: z.number(),
   expiresAt: z.number(),
   parsedBy: z.enum(['agent', 'fallback']),
+  /** Display-only. Never an address, never control characters, at most 80 chars. */
+  memo: z
+    .string()
+    .min(1)
+    .max(80)
+    .refine((s) => !/0x[a-fA-F0-9]{40}/i.test(s) && !/\p{Cc}/u.test(s), 'memo must be display text')
+    .optional(),
 });
 
 /**

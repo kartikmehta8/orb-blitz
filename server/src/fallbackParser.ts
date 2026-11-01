@@ -10,7 +10,7 @@
  * amount yield a candidate; anything else yields a clarification. The
  * caller must still run `prepareTransfer`, so the parser itself grants nothing.
  */
-import { parseMon, shortAddress, stripZeroWidth } from './intent';
+import { parseMon, sanitizeMemo, shortAddress, stripZeroWidth } from './intent';
 
 const ADDRESS = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g;
 // Leading guard instead of a lookbehind so "0.0000000000000000001 MON" can't match its tail.
@@ -167,8 +167,34 @@ const PAY_REQUEST = /\b(?:pay|send|transfer|tip|split|settle|give|refund)\b/i;
 
 /** A transfer candidate (still unvalidated) or a question with tappable options. */
 type FallbackResult =
-  | { kind: 'candidate'; to: string; amountMon: string }
+  | { kind: 'candidate'; to: string; amountMon: string; memo?: string }
   | { kind: 'clarify'; question: string; options: string[]; labels?: (string | null)[] };
+
+/**
+ * Last "for &lt;purpose&gt;" in a line, sanitized. "send 1 MON to Rahul for dinner" → "dinner".
+ * The purpose is display-only and is not an amount or an address.
+ * @param text One message or the screen text.
+ * @returns A memo, or undefined.
+ */
+function memoIn(text: string): string | undefined {
+  let found: string | undefined;
+  for (const match of text.matchAll(/\bfor\s+([A-Za-z][A-Za-z'’-]*(?:\s+[A-Za-z][A-Za-z'’-]*){0,5})/gi)) found = match[1];
+  return found ? sanitizeMemo(found) : undefined;
+}
+
+/**
+ * Memo from the newest user message that has one, otherwise from the screen.
+ * @param userTexts User messages, oldest first.
+ * @param contextText Screen text, or null.
+ * @returns A memo, or undefined.
+ */
+function findMemo(userTexts: string[], contextText: string | null): string | undefined {
+  for (let i = userTexts.length - 1; i >= 0; i--) {
+    const memo = memoIn(userTexts[i]);
+    if (memo) return memo;
+  }
+  return contextText ? memoIn(contextText) : undefined;
+}
 
 /** What the parser reads: context, user messages and the per-tx cap. */
 type FallbackInput = {
@@ -260,7 +286,8 @@ export function parseFallback(input: FallbackInput): FallbackResult {
       options,
     };
   }
-  return { kind: 'candidate', to: addresses[0], amountMon: amounts[0] };
+  const memo = findMemo(users, context);
+  return { kind: 'candidate', to: addresses[0], amountMon: amounts[0], ...(memo ? { memo } : {}) };
 }
 
 /**

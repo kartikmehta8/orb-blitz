@@ -8,7 +8,8 @@
 import { TransactionReceiptNotFoundError, type Address, type Hash, type PublicClient } from 'viem';
 import { toChecksumAddress } from './intent';
 import { addSpend } from './limits';
-import { addActivity, addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readJson, removeKey, writeJson } from './storage';
+import { OrbApiError } from './errors';
+import { addActivity, addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readStored, removeKey, writeJson } from './storage';
 
 /** A sent, unconfirmed payment. Chain data only, never screen text. */
 export type PendingTx = { hash: Hash; intentId: string; to: Address; amountWei: string; sentAt: number };
@@ -40,11 +41,16 @@ export async function savePending(tx: PendingTx): Promise<void> {
 }
 
 /**
- * Reads the pending slot.
- * @returns The pending payment, or null.
+ * Reads the pending slot. A missing key is empty. Corrupt JSON or a value
+ * that is not a pending payment throws, so a bad slot is not "no payment".
+ * @returns The pending payment, or null when the slot is empty.
+ * @throws OrbApiError when the slot cannot be read or is the wrong shape.
  */
 export async function loadPending(): Promise<PendingTx | null> {
-  return readJson(KEYS.pending, isPendingTx);
+  const stored = await readStored(KEYS.pending);
+  if (stored === undefined) return null;
+  if (!isPendingTx(stored)) throw new OrbApiError('parse', 'Pending payment is corrupt.');
+  return stored;
 }
 
 /**

@@ -22,7 +22,8 @@ Rules:
 6. Do not invent addresses. Copy the full 0x address exactly as the option value. In the question text, shorten an address to 0x1234…abcd; do not print the full address.
 7. Keep replies to at most two short sentences. No markdown.
 8. Never claim a payment was sent or confirmed. Say it's ready to confirm.
-9. If a tool returns an error, explain it plainly in one sentence and, if useful, ask_user.`;
+9. If a tool returns an error, explain it plainly in one sentence and, if useful, ask_user.
+10. When the user states a short purpose ("for dinner"), pass it as memo on prepare_native_transfer. memo is display-only, a few words, and must not contain an address. Omit it when there is no purpose. It never changes the amount or the recipient.`;
 
 /**
  * Escapes text so it cannot open or close tags (e.g. a fake `</screen>`).

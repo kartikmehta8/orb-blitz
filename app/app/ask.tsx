@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BubbleOverlay } from '../modules/bubble-overlay';
 import { planTurn, type AgentContext, type ChatTurn, type Clarification } from '../src/agentApi';
+import { setOrbState } from '../src/orbBridge';
 import { PendingBanner } from '../src/components/Banner';
 import { BrandMark } from '../src/components/BrandMark';
 import { ContextChip, type CapturedContext, type ContextState } from '../src/components/ContextChip';
@@ -79,6 +80,7 @@ function tryNative<T>(fn: () => T, fallback: T): T {
  * @returns Chip state.
  */
 function consumeContext(ctxId: string | undefined): ContextState {
+  if (ctxId) setOrbState('capturing');
   const captured = ctxId ? tryNative(() => BubbleOverlay?.consumeScreenContext(ctxId) ?? null, null) : null;
   if (!captured) {
     return { kind: 'unavailable', accessibilityOn: tryNative(() => BubbleOverlay?.isAccessibilityEnabled() ?? false, false) };
@@ -254,6 +256,7 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
       setTurns((t) => [...t, ...added]);
     } catch {
       if (!controller.signal.aborted) {
+        setOrbState('error');
         setTurns((t) => [
           ...t,
           { id: randomUUID(), kind: 'notice', text: 'Something went wrong. Try again.', tone: 'danger', icon: 'alert-circle' },

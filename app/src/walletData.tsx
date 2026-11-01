@@ -9,9 +9,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import type { Address } from 'viem';
+import { toOrbApiError, type OrbApiError } from './errors';
 import { useBalance, usePendingTx, useWallet } from './hooks';
 import { getLimitState, type LimitState } from './limits';
 import type { PendingStatus } from './pendingTx';
+import type { PendingPhase } from './pendingView';
 import { getActivity, type ActivityTx } from './storage';
 
 type WalletData = {
@@ -21,11 +23,18 @@ type WalletData = {
   balance: bigint | null;
   balanceError: boolean;
   pending: PendingStatus;
+  /** `loading` until the first check. A failed check is `error`, and `pending` stays at the last chain result. */
+  pendingPhase: PendingPhase;
+  pendingError: OrbApiError | null;
   recheckPending: () => void;
-  /** Finished payments, newest first; null while loading. */
+  /** Runs the pending check again. Same work as `recheckPending`. */
+  retryPending: () => void;
+  /** Finished payments, newest first; null while loading. Kept when a refresh fails. */
   activity: ActivityTx[] | null;
-  /** Caps and today's spend; null while loading. */
+  /** Caps and today's spend; null while loading. Kept when a refresh fails. */
   limits: LimitState | null;
+  /** Set when activity or limits could not be read. Null after a successful refresh. */
+  localError: OrbApiError | null;
   /** Re-reads activity and limits from storage. */
   reloadLocal: () => Promise<void>;
   /** Re-checks the pending payment, the balance and local data. */
@@ -42,14 +51,21 @@ const WalletDataContext = createContext<WalletData | null>(null);
 export function WalletDataProvider({ children }: { children: ReactNode }) {
   const { address, email } = useWallet();
   const { balance, error: balanceError, refresh: refreshBalance } = useBalance(address);
-  const { status: pending, recheck } = usePendingTx();
+  const { status: pending, phase: pendingPhase, error: pendingError, recheck, retry } = usePendingTx();
   const [activity, setActivity] = useState<ActivityTx[] | null>(null);
   const [limits, setLimits] = useState<LimitState | null>(null);
+  const [localError, setLocalError] = useState<OrbApiError | null>(null);
 
   const reloadLocal = useCallback(async () => {
-    const [items, state] = await Promise.all([getActivity(), getLimitState()]);
-    setActivity(items);
-    setLimits(state);
+    try {
+      const [items, state] = await Promise.all([getActivity(), getLimitState()]);
+      setActivity(items);
+      setLimits(state);
+      setLocalError(null);
+    } catch (e) {
+      // Keep the last good activity and limits. A first-load failure leaves them null.
+      setLocalError(toOrbApiError(e));
+    }
   }, []);
 
   const refresh = useCallback(async () => {
@@ -79,9 +95,13 @@ export function WalletDataProvider({ children }: { children: ReactNode }) {
     balance,
     balanceError,
     pending,
+    pendingPhase,
+    pendingError,
     recheckPending: () => void recheck(),
+    retryPending: () => void retry(),
     activity,
     limits,
+    localError,
     reloadLocal,
     refresh,
   };

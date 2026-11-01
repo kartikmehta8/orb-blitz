@@ -67,6 +67,12 @@ class BubbleOverlayModule : Module() {
 
     Function("hideBubble") { sendToBubble(BubbleService.ACTION_HIDE) }
 
+    Function("setOrbState") { state: String ->
+      if (state == "idle" || state == "capturing" || state == "thinking" || state == "success" || state == "error") {
+        sendToBubble(BubbleService.ACTION_SET_STATE, state)
+      }
+    }
+
     Function("isBubbleRunning") { BubbleService.isRunning }
 
     Function("consumeScreenContext") { id: String ->
@@ -90,13 +96,16 @@ class BubbleOverlayModule : Module() {
   }
 
   /**
-   * Forwards a show/hide action to [BubbleService], only while it runs
+   * Forwards an action to [BubbleService], only while it runs
    * (never starts it as a side effect).
-   * @param action [BubbleService.ACTION_SHOW] or [BubbleService.ACTION_HIDE].
+   * @param action Show, hide, or [BubbleService.ACTION_SET_STATE].
+   * @param state Orb state extra for [BubbleService.ACTION_SET_STATE].
    */
-  private fun sendToBubble(action: String) {
+  private fun sendToBubble(action: String, state: String? = null) {
     if (BubbleService.isRunning) {
-      context.startService(Intent(context, BubbleService::class.java).setAction(action))
+      val intent = Intent(context, BubbleService::class.java).setAction(action)
+      if (state != null) intent.putExtra(BubbleService.EXTRA_STATE, state)
+      context.startService(intent)
     }
   }
 

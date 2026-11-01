@@ -13,6 +13,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createWalletClient, custom, toHex, type Address, type Hash } from 'viem';
 import { publicClient } from './chain';
 import { monadTestnet } from './config';
+import { approvalMode, readDeviceAuth, type DeviceAuthStatus } from './deviceAuth';
+import { OrbApiError } from './errors';
 import { CHAIN_ID, type Intent } from './intent';
 import { getLimitState } from './limits';
 import { finalizePending, loadPending, savePending, settlePending, type PendingTx } from './pendingTx';
@@ -45,8 +47,13 @@ type IntentExecution = {
   /** Fresh balance from the last check. */
   balanceWei: bigint | null;
   walletStatus: 'loading' | 'ready' | 'error';
-  /** Null until device capabilities are known. */
+  /** Null until device capabilities are known. `null` also means the lookup failed, so Confirm stays disabled. */
   authMode: AuthMode | null;
+  /**
+   * Full device lookup. `pin` still sets `authMode` to `biometric` (same system prompt).
+   * `not-enrolled` and `unavailable` set `authMode` to `hold`. `error` sets it to null.
+   */
+  deviceAuth: DeviceAuthStatus | null;
   /** Approves and sends. With `hold` auth, call it only after the hold completes. */
   confirm: () => Promise<void>;
   /** Re-runs the local checks (after a transient failure). */
@@ -114,6 +121,7 @@ export function useIntentExecution(
   const [provider, setProvider] = useState<PrivyEmbeddedWalletProvider | null>(null);
   const [walletError, setWalletError] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+  const [deviceAuth, setDeviceAuth] = useState<DeviceAuthStatus | null>(null);
   const busy = useRef(false);
   const txRef = useRef<PendingTx | null>(null);
   const walletRef = useRef(wallet);
@@ -122,10 +130,15 @@ export function useIntentExecution(
   settledRef.current = onSettled;
 
   useEffect(() => {
-    LocalAuthentication.getEnrolledLevelAsync().then(
-      (level) => setAuthMode(level > LocalAuthentication.SecurityLevel.NONE ? 'biometric' : 'hold'),
-      () => setAuthMode('hold'),
-    );
+    let alive = true;
+    void readDeviceAuth(LocalAuthentication).then((status) => {
+      if (!alive) return;
+      setDeviceAuth(status);
+      setAuthMode(approvalMode(status));
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Resolve the provider up front so Confirm is only enabled once signing can start (max 10 s).
@@ -165,7 +178,8 @@ export function useIntentExecution(
         otherPending: !!pending && pending.hash !== txRef.current?.hash,
         now: Date.now(),
       });
-    } catch {
+    } catch (e) {
+      if (e instanceof OrbApiError) return { ok: false, reason: e.message, retryable: true };
       return RPC_UNREACHABLE;
     }
   }, [address, intent]);
@@ -285,6 +299,7 @@ export function useIntentExecution(
     balanceWei,
     walletStatus: provider ? 'ready' : walletError ? 'error' : 'loading',
     authMode,
+    deviceAuth,
     confirm,
     recheck,
     checkAgain,

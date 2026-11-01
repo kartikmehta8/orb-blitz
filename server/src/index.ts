@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { anthropicCreateMessage, runAgent, type AgentDeps } from './agent';
+import { createPrivyAccessVerifier, loadAuthConfig, type AuthConfig } from './auth';
 import { createChainClient, DEFAULT_RPC_URL } from './chain';
 import { CHAIN_ID } from './intent';
 import { AgentRequestSchema } from './schemas';
@@ -20,9 +21,9 @@ const BODY_LIMIT_BYTES = 32 * 1024;
 const RATE_LIMIT_PER_MIN = 30;
 const DEFAULT_MODEL = 'claude-haiku-5-5';
 
-/** Agent dependencies plus the HTTP layer's token, clock and log sink. */
+/** Agent dependencies plus the HTTP layer's auth, clock and log sink. */
 export type AppDeps = AgentDeps & {
-  agentToken: string;
+  auth: AuthConfig;
   /** Clock for the rate limiter; injectable for tests. */
   now?: () => number;
   /** Receives one JSON line per request. */
@@ -43,15 +44,28 @@ export const maskAddress = (address: string): string => `${address.slice(0, 4)}â
 
 /**
  * Builds the Hono app. All I/O (model, chain, clock, log sink) is injected.
- * @param deps Token, model, chain client and optional clock/log sink.
+ * @param deps Auth, model, chain client and optional clock/log sink.
  * @returns The app; use `app.fetch` or `app.request`.
  */
 export function createApp(deps: AppDeps): Hono<Env> {
   const now = deps.now ?? Date.now;
   const log = deps.log ?? ((line: string) => console.log(line));
-  const expected = sha256(deps.agentToken);
-  // ponytail: one shared token, so one fixed 60 s window in process memory. Use a store keyed per token/device if tokens multiply.
-  const window = { start: 0, count: 0 };
+  const expected = deps.auth.mode === 'token' ? sha256(deps.auth.agentToken) : null;
+  // One 60s window per Privy user id (`sub`). Token mode has a single shared key.
+  const windows = new Map<string, { start: number; count: number }>();
+  const rateLimited = (key: string): boolean => {
+    const t = now();
+    let window = windows.get(key);
+    if (!window || t - window.start >= 60_000) {
+      window = { start: t, count: 0 };
+      windows.set(key, window);
+    }
+    window.count += 1;
+    if (windows.size > 1_000) {
+      for (const [id, item] of windows) if (t - item.start >= 60_000) windows.delete(id);
+    }
+    return window.count > RATE_LIMIT_PER_MIN;
+  };
 
   const app = new Hono<Env>();
 
@@ -66,11 +80,20 @@ export function createApp(deps: AppDeps): Hono<Env> {
 
   app.use('/v1/*', async (c, next) => {
     const token = /^Bearer\s+(\S+)$/i.exec(c.req.header('authorization') ?? '')?.[1];
-    // Hashing first gives equal-length buffers, so the compare is constant-time regardless of input length.
-    if (!token || !timingSafeEqual(sha256(token), expected)) return c.json({ error: 'UNAUTHORIZED' }, 401);
-    const t = now();
-    if (t - window.start >= 60_000) Object.assign(window, { start: t, count: 0 });
-    if (++window.count > RATE_LIMIT_PER_MIN) return c.json({ error: 'RATE_LIMITED' }, 429);
+    if (!token) return c.json({ error: 'UNAUTHORIZED' }, 401);
+    let key: string;
+    if (deps.auth.mode === 'token') {
+      // Hashing first gives equal-length buffers, so the compare is constant-time regardless of input length.
+      if (!expected || !timingSafeEqual(sha256(token), expected)) return c.json({ error: 'UNAUTHORIZED' }, 401);
+      key = 'token';
+    } else {
+      try {
+        key = (await deps.auth.verify(token)).sub;
+      } catch {
+        return c.json({ error: 'UNAUTHORIZED' }, 401);
+      }
+    }
+    if (rateLimited(key)) return c.json({ error: 'RATE_LIMITED' }, 429);
     return next();
   });
 
@@ -113,16 +136,20 @@ export function createApp(deps: AppDeps): Hono<Env> {
 function main(): void {
   if (existsSync('.env')) process.loadEnvFile('.env');
   const env = process.env;
-  const agentToken = env.AGENT_TOKEN ?? '';
-  if (!agentToken || (env.NODE_ENV === 'production' && agentToken === 'change-me')) {
-    console.error('Refusing to start: set AGENT_TOKEN (and not to "change-me" in production).');
+  let loaded;
+  try {
+    loaded = loadAuthConfig(env);
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : 'Refusing to start.');
     process.exit(1);
   }
+  const auth: AuthConfig =
+    loaded.mode === 'token' ? loaded : { mode: 'privy', appId: loaded.appId, verify: createPrivyAccessVerifier(loaded.appId) };
   const model = env.ANTHROPIC_MODEL || DEFAULT_MODEL;
   const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) console.warn('ANTHROPIC_API_KEY is unset: every request uses the fallback parser.');
   const app = createApp({
-    agentToken,
+    auth,
     model,
     chain: createChainClient(env.MONAD_RPC_URL || DEFAULT_RPC_URL),
     createMessage: apiKey ? anthropicCreateMessage(new Anthropic({ apiKey, maxRetries: 1 })) : null,

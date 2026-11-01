@@ -95,6 +95,11 @@ export type Intent = {
   createdAt: number;
   expiresAt: number;
   parsedBy: 'agent' | 'fallback';
+  /**
+   * Display-only note, e.g. "dinner". Never used for the amount, the
+   * recipient, or the transaction. Omitted when there is nothing to show.
+   */
+  memo?: string;
 };
 
 /** Hard failures from `prepareTransfer`; no intent is created. */
@@ -126,6 +131,8 @@ type TransferRequest = {
   /** All user-authored messages in the conversation. */
   userTexts: string[];
   parsedBy: Intent['parsedBy'];
+  /** Display-only. Sanitized onto the intent; never affects amount or recipient. */
+  memo?: string;
   now?: number;
 };
 
@@ -142,6 +149,27 @@ const MON_DECIMAL = /^\d+(\.\d{1,18})?$/;
  */
 export function stripZeroWidth(text: string): string {
   return text.replace(ZERO_WIDTH, '');
+}
+
+const MEMO_ADDRESS = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/;
+/** Longest memo stored on an intent. */
+const MAX_MEMO_CHARS = 80;
+
+/**
+ * Cleans a display-only memo.
+ *
+ * Trims, replaces control characters with spaces, collapses whitespace, and
+ * keeps at most 80 characters. A blank result or any 0x address is dropped
+ * so a memo cannot smuggle a recipient.
+ * @param raw Model or parser text. Null and undefined are empty.
+ * @returns The memo, or undefined when there is nothing safe to show.
+ */
+export function sanitizeMemo(raw: string | null | undefined): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const cleaned = stripZeroWidth(raw).replace(/\p{Cc}/gu, ' ').replace(/\s+/g, ' ').trim();
+  if (!cleaned || MEMO_ADDRESS.test(cleaned)) return undefined;
+  const cut = cleaned.slice(0, MAX_MEMO_CHARS).trim();
+  return cut.length > 0 ? cut : undefined;
 }
 
 /**
@@ -282,6 +310,7 @@ export async function prepareTransfer(client: ChainReader, req: TransferRequest)
     if (amount * 5n >= remaining * 4n) warnings.push('CLOSE_TO_DAILY_LIMIT');
 
     const now = req.now ?? Date.now();
+    const memo = sanitizeMemo(req.memo);
     return {
       id: req.id,
       type: 'native_transfer',
@@ -298,6 +327,7 @@ export async function prepareTransfer(client: ChainReader, req: TransferRequest)
       createdAt: now,
       expiresAt: now + INTENT_TTL_MS,
       parsedBy: req.parsedBy,
+      ...(memo ? { memo } : {}),
     };
   } catch (e) {
     return fail('RPC_ERROR', `Couldn't reach Monad testnet: ${(e as Error).message.split('\n')[0].slice(0, 120)}`);

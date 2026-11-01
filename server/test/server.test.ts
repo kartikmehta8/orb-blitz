@@ -12,7 +12,7 @@ function setup(over: Partial<AppDeps> = {}) {
   const logs: string[] = [];
   let clock = 1_000_000;
   const app = createApp({
-    agentToken: TOKEN,
+    auth: { mode: 'token', agentToken: TOKEN },
     model: 'test-model',
     chain: mockChain(),
     createMessage: null,

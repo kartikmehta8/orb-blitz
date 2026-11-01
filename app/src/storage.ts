@@ -2,11 +2,13 @@
  * @file AsyncStorage-backed local state: defensive JSON helpers, the known
  * recipient list, the executed-intent set and the payment activity list.
  *
- * Every read is defensive: missing, corrupt or foreign data reads as "absent"
- * instead of throwing, so a bad write can never brick the app.
+ * `readJson` stays defensive: missing, corrupt or foreign data reads as
+ * "absent" instead of throwing. `readStored` is the opposite, used by activity,
+ * limits and the pending slot, where a real failure must not look like empty.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Address, Hash } from 'viem';
+import { OrbApiError, toOrbApiError } from './errors';
 import { toChecksumAddress } from './intent';
 
 /** Storage keys. Bump the version suffix when a shape changes. */
@@ -93,6 +95,31 @@ export async function removeKey(key: string): Promise<void> {
 }
 
 /**
+ * Reads a JSON value and throws when the read or the JSON is bad.
+ *
+ * A missing key is `undefined`, which is not a failure. An empty list or
+ * object is returned as parsed. Callers decide which shapes are valid.
+ * @param key Storage key.
+ * @returns The parsed value, or `undefined` when the key is absent.
+ * @throws OrbApiError `network`, `timeout`, or `http` when AsyncStorage throws; `parse` when the text is not JSON.
+ */
+export async function readStored(key: string): Promise<unknown> {
+  let raw: string | null;
+  try {
+    raw = await AsyncStorage.getItem(key);
+  } catch (e) {
+    throw toOrbApiError(e);
+  }
+  if (raw === null) return undefined;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (e) {
+    const message = e instanceof Error && e.message ? e.message : 'Could not parse stored data.';
+    throw new OrbApiError('parse', message);
+  }
+}
+
+/**
  * Addresses this wallet has paid successfully before.
  * @returns Lowercased addresses.
  */
@@ -147,19 +174,23 @@ const isActivityTx = (v: unknown): v is ActivityTx =>
   (v.status === 'confirmed' || v.status === 'failed') &&
   typeof v.at === 'number';
 
-const isArray = (v: unknown): v is unknown[] => Array.isArray(v);
-
 /**
- * Reads recent payments, newest first. Corrupt entries are dropped one by one
- * rather than discarding the whole list. On first run after the upgrade, the
- * old single `lastTx:v1` entry becomes the list's only item and is removed.
+ * Reads recent payments, newest first. A missing key or an empty list is
+ * empty. One bad entry is dropped. Invalid JSON or a non-list value throws,
+ * so a corrupt store is not shown as "no payments".
+ * On first run after the upgrade, the old single `lastTx:v1` entry becomes
+ * the list's only item and is removed.
  * @returns Up to 20 payments, newest first.
+ * @throws OrbApiError when the activity key cannot be read or is not a list.
  */
 export async function getActivity(): Promise<ActivityTx[]> {
-  const stored = await readJson(KEYS.activity, isArray);
-  if (stored) return stored.filter(isActivityTx).slice(0, MAX_ACTIVITY);
-  const legacy = await readJson(LEGACY_LAST_TX_KEY, isActivityTx);
-  if (!legacy) return [];
+  const stored = await readStored(KEYS.activity);
+  if (stored !== undefined) {
+    if (!Array.isArray(stored)) throw new OrbApiError('parse', 'Activity is not a list.');
+    return stored.filter(isActivityTx).slice(0, MAX_ACTIVITY);
+  }
+  const legacy = await readStored(LEGACY_LAST_TX_KEY);
+  if (!isActivityTx(legacy)) return [];
   await writeJson(KEYS.activity, [legacy]);
   await removeKey(LEGACY_LAST_TX_KEY);
   return [legacy];

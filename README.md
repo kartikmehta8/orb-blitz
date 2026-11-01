@@ -12,7 +12,7 @@
 │        └──────────────► Orb app (translucent) ─ tabs ─ /ask sheet      │
 │                               │  Privy embedded wallet (signs locally) │
 └───────────────────────────────┼────────────────────────────────────────┘
-                                │ HTTPS (bearer token)
+                                │ HTTPS (Privy access token)
                    Agent server (Node, Hono) → Claude tool loop
                    tools: balance · inspect_address · prepare_native_transfer
                           · get_tx_status · ask_user   (read-only RPC)
@@ -25,7 +25,7 @@
 
 ## Prerequisites
 
-- Node 20.12+, pnpm (app), npm (server), ngrok
+- Node 22.12+ (the server refuses older), pnpm (app), npm (server), ngrok
 - JDK 17 and the Android SDK (`ANDROID_HOME`), and an Android 10+ phone with USB debugging on
 - A Privy app with email login and EVM embedded wallets. In its mobile client, allow the app identifier `com.bubbleagent.app` and the URL scheme `bubbleagent`.
 - An Anthropic API key (optional: without it the server uses a basic offline parser)
@@ -34,14 +34,14 @@
 
 ```bash
 # 1. Agent server
-cd server && npm install && cp .env.example .env   # set ANTHROPIC_API_KEY and a long random AGENT_TOKEN
+cd server && npm install && cp .env.example .env   # set ANTHROPIC_API_KEY and PRIVY_APP_ID (same id as the app)
 npm run dev
 
 # 2. Tunnel (second terminal)
 ngrok http --url=<your-domain>.ngrok-free.dev 8787
 
 # 3. App (third terminal, phone plugged in)
-cd app && pnpm install && cp .env.example .env     # Privy IDs, ngrok URL, same AGENT_TOKEN
+cd app && pnpm install && cp .env.example .env     # Privy IDs and the ngrok URL
 pnpm android
 ```
 
@@ -76,4 +76,8 @@ If you sideloaded the APK, enable accessibility via App info → ⋮ → **Allow
 - The recipient must appear on screen or in your message, so the model cannot introduce addresses. Screen text is treated as untrusted input.
 - The screen is read only when you tap the orb. You can see and exclude the captured text, and captures live in memory for at most 120 seconds.
 - Monad testnet only (chain 10143), checked by the server, the app and the wallet before signing.
-- `EXPO_PUBLIC_AGENT_TOKEN` ships inside the APK, so the agent auth is demo-grade.
+- The app sends the signed-in user's Privy access token (`Authorization: Bearer`). The server checks it as an ES256 JWT against `https://auth.privy.io/api/v1/apps/<PRIVY_APP_ID>/jwks.json` (`iss` `privy.io`, `aud` the app id, `exp`). There is no shared token in the APK. `AUTH_MODE=token` plus `AGENT_TOKEN` is a server-only dev escape hatch and is off unless set explicitly.
+- A valid token proves the Privy user id (`sub`). It does not yet prove that `wallet.address` in the request belongs to that user. That needs the Privy app secret on the server, which this build does not use.
+- Rate limit is 30 requests per minute per Privy user id (one shared bucket when `AUTH_MODE=token`).
+- An intent may include `memo`, a display-only note of at most 80 characters ("send 1 MON to Rahul for dinner" → `dinner`). It is not part of the signed transaction and never changes the amount or the recipient.
+- `setOrbState('idle' | 'capturing' | 'thinking' | 'success' | 'error')` paints the overlay. `success` and `error` return to `idle` after 1.5s. The paint function to restyle is `applyOrbStateVisual` in `app/modules/bubble-overlay/.../OrbVisual.kt`. `useOrbState()` reads the same state in React.

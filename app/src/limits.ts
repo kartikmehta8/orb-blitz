@@ -7,7 +7,8 @@
 import { formatEther, parseEther } from 'viem';
 import { LIMIT_DEFAULTS } from './config';
 import { parseMon } from './intent';
-import { isRecord, isWeiString, KEYS, readJson, writeJson } from './storage';
+import { OrbApiError } from './errors';
+import { isRecord, isWeiString, KEYS, readStored, writeJson } from './storage';
 
 /** User-editable caps in MON. */
 export type Limits = { perTxMon: string; dailyMon: string };
@@ -49,14 +50,19 @@ function normalize(value: unknown, fallback: string): string {
 }
 
 /**
- * Loads caps, replacing missing or invalid values with defaults.
+ * Loads caps. A missing key is the defaults. A present value that is not an
+ * object throws. Invalid cap strings inside a valid object still fall back
+ * to the defaults; that is a bad setting, not a failed read.
  * @returns Valid caps.
+ * @throws OrbApiError when the limits key cannot be read or parsed.
  */
 async function loadLimits(): Promise<Limits> {
-  const stored = await readJson(KEYS.limits, isRecord);
+  const stored = await readStored(KEYS.limits);
+  if (stored === undefined) return { ...DEFAULT_LIMITS };
+  if (!isRecord(stored)) throw new OrbApiError('parse', 'Stored limits are not an object.');
   return {
-    perTxMon: normalize(stored?.perTxMon, DEFAULT_LIMITS.perTxMon),
-    dailyMon: normalize(stored?.dailyMon, DEFAULT_LIMITS.dailyMon),
+    perTxMon: normalize(stored.perTxMon, DEFAULT_LIMITS.perTxMon),
+    dailyMon: normalize(stored.dailyMon, DEFAULT_LIMITS.dailyMon),
   };
 }
 
@@ -85,11 +91,16 @@ function spendKey(date = new Date()): string {
 }
 
 /**
- * Total confirmed spend today.
+ * Total confirmed spend today. A missing key is zero. A present value that
+ * is not a wei decimal throws.
  * @returns Wei.
+ * @throws OrbApiError when today's spend key cannot be read or parsed.
  */
 async function getSpentToday(): Promise<bigint> {
-  return BigInt((await readJson(spendKey(), isWeiString)) ?? '0');
+  const stored = await readStored(spendKey());
+  if (stored === undefined) return 0n;
+  if (!isWeiString(stored)) throw new OrbApiError('parse', 'Stored spend is not a wei amount.');
+  return BigInt(stored);
 }
 
 /**
@@ -105,6 +116,7 @@ export async function addSpend(wei: bigint): Promise<void> {
 /**
  * Caps and today's spend in one read.
  * @returns Current limit state.
+ * @throws OrbApiError when either stored value cannot be read. An empty store does not throw.
  */
 export async function getLimitState(): Promise<LimitState> {
   const [limits, spentWei] = await Promise.all([loadLimits(), getSpentToday()]);

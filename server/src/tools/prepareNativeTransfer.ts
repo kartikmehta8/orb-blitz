@@ -16,6 +16,11 @@ export const prepareNativeTransfer = defineTool({
     to: z.string().max(100).describe('Recipient 0x address, copied exactly.'),
     amount_mon: z.string().max(40).describe('Amount in MON as a decimal string, e.g. "2" or "0.5".'),
     reason: z.string().max(200).describe('Short note on why, e.g. "dinner split".'),
+    memo: z
+      .string()
+      .max(500)
+      .optional()
+      .describe('Display-only purpose, e.g. "dinner". No addresses. Omit if unknown. Does not change the amount or recipient.'),
   }),
   run: async (ctx, input) => {
     if (ctx.intents.length >= MAX_INTENTS_PER_REQUEST) {
@@ -31,6 +36,7 @@ export const prepareNativeTransfer = defineTool({
       context: ctx.context,
       userTexts: ctx.userTexts,
       parsedBy: 'agent',
+      memo: input.memo,
     });
     if (isTransferError(result)) return result;
     ctx.intents.push(result);

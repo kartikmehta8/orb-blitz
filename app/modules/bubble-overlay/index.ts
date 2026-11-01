@@ -37,6 +37,11 @@ export interface BubbleOverlayApi {
   isBubbleRunning(): boolean;
   /** Returns the context once, then deletes it. Null if unknown or older than 120 s. */
   consumeScreenContext(id: string): ScreenContext | null;
+  /**
+   * Paints the orb. `success` and `error` return to `idle` after 1.5s inside
+   * the service; a later call cancels that. No-op when the service is stopped.
+   */
+  setOrbState(state: 'idle' | 'capturing' | 'thinking' | 'success' | 'error'): void;
   /** `moveTaskToBack(true)` on the current activity. */
   minimizeApp(): void;
 }

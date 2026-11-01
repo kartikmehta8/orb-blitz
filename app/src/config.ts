@@ -2,7 +2,8 @@
  * @file Runtime configuration from `EXPO_PUBLIC_*` env vars plus chain constants.
  *
  * `EXPO_PUBLIC_*` values are inlined into the JS bundle at build time, so they
- * are public. `agentToken` is demo-grade auth only (see README).
+ * are public. The agent call uses the Privy access token from the SDK, which
+ * is not an env var and is not stored here.
  */
 import { MONAD_TESTNET_EXPLORER_URL, MONAD_TESTNET_RPC_URL, monadTestnetChain } from './intent';
 
@@ -13,7 +14,6 @@ export const config = {
   privyClientId: env.EXPO_PUBLIC_PRIVY_CLIENT_ID ?? '',
   /** Agent server base URL, no trailing slash. */
   agentUrl: (env.EXPO_PUBLIC_AGENT_URL ?? '').replace(/\/+$/, ''),
-  agentToken: env.EXPO_PUBLIC_AGENT_TOKEN ?? '',
   rpcUrl: env.EXPO_PUBLIC_MONAD_RPC_URL || MONAD_TESTNET_RPC_URL,
   explorerUrl: (env.EXPO_PUBLIC_EXPLORER_URL || MONAD_TESTNET_EXPLORER_URL).replace(/\/+$/, ''),
   faucetUrl: 'https://faucet.monad.xyz',

@@ -201,6 +201,7 @@ async function runFallback(req: AgentRequest, ctx: ToolCtx, errorCodes: string[]
     context: ctx.context,
     userTexts: ctx.userTexts,
     parsedBy: 'fallback',
+    memo: parsed.memo,
   });
   if (isTransferError(result)) {
     errorCodes.push(result.error);

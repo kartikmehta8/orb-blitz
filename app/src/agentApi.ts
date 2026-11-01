@@ -7,10 +7,11 @@
  * a compromised server cannot inject a recipient, fee or gas limit.
  *
  * Network errors, timeouts, 429 and 5xx fall back to the offline regex parser.
- * 401 does not.
+ * 401, and a missing Privy access token, do not.
  */
 import { randomUUID } from 'expo-crypto';
 import { formatEther, type Address } from 'viem';
+import { currentAccessToken } from './accessToken';
 import { publicClient } from './chain';
 import { config } from './config';
 import { parseFallback } from './fallbackParser';
@@ -24,6 +25,7 @@ import {
   type ScreenContextInput,
 } from './intent';
 import type { LimitState } from './limits';
+import { setOrbState } from './orbBridge';
 import { getRecipients, isRecord, isStringArray, isWeiString } from './storage';
 import { withNewRecipient } from './validateIntent';
 
@@ -61,8 +63,11 @@ export type Clarification = {
   labels?: (string | null)[];
 };
 
-/** The only intent fields the app reads from the server. */
-type ProposedIntent = Pick<Intent, 'id' | 'to' | 'amountWei'>;
+/**
+ * The only intent fields the app reads from the server.
+ * `memo` is display-only and optional; anything else on the object is ignored.
+ */
+type ProposedIntent = Pick<Intent, 'id' | 'to' | 'amountWei'> & { memo?: string };
 
 type AgentResponse = { reply: string; intents: ProposedIntent[]; clarification: Clarification | null };
 
@@ -145,11 +150,13 @@ async function askAgent(req: AgentRequest, signal: AbortSignal): Promise<AgentRe
   signal.addEventListener('abort', onAbort);
   const timer = setTimeout(onAbort, AGENT_TIMEOUT_MS);
   try {
+    const token = await currentAccessToken();
+    if (!token) throw new AgentError('auth', 'No Privy access token');
     let res: Response;
     try {
       res = await fetch(`${config.agentUrl}/v1/agent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.agentToken}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(req),
         signal: controller.signal,
       });
@@ -212,9 +219,21 @@ export async function planTurn(input: TurnInput): Promise<TurnOutcome> {
     appLabel: context.appLabel,
     text: context.text,
   };
-  const prepare = (id: string, to: string, amountMon: string, parsedBy: Intent['parsedBy']) =>
-    prepareTransfer(publicClient, { id, to, amountMon, wallet, perTxMon, dailyRemainingMon, context: contextInput, userTexts, parsedBy });
+  const prepare = (id: string, to: string, amountMon: string, parsedBy: Intent['parsedBy'], memo?: string) =>
+    prepareTransfer(publicClient, {
+      id,
+      to,
+      amountMon,
+      wallet,
+      perTxMon,
+      dailyRemainingMon,
+      context: contextInput,
+      userTexts,
+      parsedBy,
+      ...(typeof memo === 'string' ? { memo } : {}),
+    });
 
+  setOrbState('thinking');
   let failure: AgentErrorKind;
   try {
     const res = await askAgent(
@@ -227,8 +246,11 @@ export async function planTurn(input: TurnInput): Promise<TurnOutcome> {
       },
       signal,
     );
-    const results = await Promise.all(res.intents.map((p) => prepare(p.id, p.to, formatEther(BigInt(p.amountWei)), 'agent')));
+    const results = await Promise.all(
+      res.intents.map((p) => prepare(p.id, p.to, formatEther(BigInt(p.amountWei)), 'agent', p.memo)),
+    );
     const errors = [...new Set(results.filter(isTransferError).map((r) => r.message))];
+    setOrbState('success');
     return {
       notice: null,
       reply: [res.reply, ...errors].filter(Boolean).join('\n\n'),
@@ -236,12 +258,20 @@ export async function planTurn(input: TurnInput): Promise<TurnOutcome> {
       clarification: res.clarification,
     };
   } catch (e) {
-    if (signal.aborted || !(e instanceof AgentError)) throw e;
+    if (signal.aborted) {
+      setOrbState('idle');
+      throw e;
+    }
+    if (!(e instanceof AgentError)) {
+      setOrbState('error');
+      throw e;
+    }
     failure = e.kind;
   }
 
   if (failure === 'auth') {
-    return { notice: { text: 'Agent auth failed (check token)', tone: 'danger' }, reply: '', intents: [], clarification: null };
+    setOrbState('error');
+    return { notice: { text: 'Sign in again to use the agent.', tone: 'danger' }, reply: '', intents: [], clarification: null };
   }
   const notice: TurnOutcome['notice'] = {
     text: failure === 'offline' ? 'Agent offline. Using basic parser.' : 'Agent sent a bad response. Using basic parser.',
@@ -250,6 +280,7 @@ export async function planTurn(input: TurnInput): Promise<TurnOutcome> {
   const parsed = parseFallback({ contextText: context?.text ?? null, userTexts, perTxMon });
   if (parsed.kind === 'clarify') {
     const labels = parsed.labels?.some((label) => label !== null) ? parsed.labels : undefined;
+    setOrbState('success');
     return {
       notice,
       reply: '',
@@ -257,7 +288,8 @@ export async function planTurn(input: TurnInput): Promise<TurnOutcome> {
       clarification: { question: parsed.question, options: parsed.options, ...(labels ? { labels } : {}) },
     };
   }
-  const result = await prepare(randomUUID(), parsed.to, parsed.amountMon, 'fallback');
+  const result = await prepare(randomUUID(), parsed.to, parsed.amountMon, 'fallback', parsed.memo);
+  setOrbState('success');
   return isTransferError(result)
     ? { notice, reply: result.message, intents: [], clarification: null }
     : { notice, reply: '', intents: await withKnownRecipients([result]), clarification: null };
