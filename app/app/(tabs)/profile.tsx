@@ -65,7 +65,7 @@ function Group({ title, rows }: { title: string; rows: Row[] }) {
  */
 export default function ProfileScreen() {
   const { logout } = usePrivy();
-  const { address, email, limits, reloadLocal } = useWalletData();
+  const { address, email, limits, localError, reloadLocal } = useWalletData();
   const { copied, copy } = useCopy();
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
@@ -104,7 +104,12 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
-      <LimitsCard state={limits} onSaved={() => void reloadLocal()} />
+      <LimitsCard
+        state={limits}
+        error={localError !== null}
+        onRetry={() => void reloadLocal()}
+        onSaved={() => void reloadLocal()}
+      />
 
       <Group
         title="Network"

@@ -316,7 +316,12 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
           keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
-          <PendingBanner status={pending.status} onRecheck={() => void pending.recheck()} />
+          <PendingBanner
+            phase={pending.phase}
+            status={pending.status}
+            error={pending.error}
+            onRetry={() => void pending.retry()}
+          />
           <ContextChip
             state={context}
             excluded={excluded}

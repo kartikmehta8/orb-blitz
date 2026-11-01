@@ -10,14 +10,25 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import type { Address } from 'viem';
 import { config } from '../config';
+import type { DeviceAuthStatus } from '../deviceAuth';
 import { useIntentExecution } from '../execute';
 import { formatMon, type Intent, type IntentWarning } from '../intent';
 import { colors, radius, space } from '../theme';
 import { intentCost } from '../validateIntent';
 import { AddressText } from './AddressText';
+import { displayMemo } from './format';
 import { HoldButton } from './HoldButton';
 import { PaymentStatus } from './PaymentStatus';
 import { Button, Card, Text, type IconName } from './ui';
+
+/** One line on the confirm card for each device-auth result. The control below still follows `authMode`. */
+const AUTH_LINE: Record<DeviceAuthStatus, string> = {
+  biometric: 'Your fingerprint confirms this payment.',
+  pin: 'Your screen lock confirms this payment.',
+  'not-enrolled': 'Add a fingerprint or screen lock in Settings.',
+  unavailable: "This device can't use biometrics, so hold to confirm.",
+  error: 'The check failed.',
+};
 
 /** Plain-language copy for each warning. */
 const WARNING_COPY: Record<IntentWarning, string> = {
@@ -67,7 +78,7 @@ type Props = {
 export function IntentCard({ intent, wallet, address, onSettled }: Props) {
   const exec = useIntentExecution(intent, wallet, address, onSettled);
   const [declined, setDeclined] = useState(false);
-  const { state, check, balanceWei, walletStatus, authMode } = exec;
+  const { state, check, balanceWei, walletStatus, authMode, deviceAuth } = exec;
   const cost = intentCost(intent);
   const source = sourceLine(intent.provenance);
   const actionable = state.status === 'idle' || state.status === 'cancelled';
@@ -76,6 +87,7 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
   const confirmBlocked = !check?.ok || walletStatus !== 'ready' || authMode === null;
   const short = balanceWei !== null && cost !== null && balanceWei < cost.total;
   const amount = intent.amountDisplay.replace(/\s*MON$/, '');
+  const memo = displayMemo(intent.memo);
   // Ellipsis while the balance loads; never a negative balance.
   const balanceAfter = short ? 'Not enough MON' : balanceWei !== null && cost ? formatMon(balanceWei - cost.total) : '…';
 
@@ -119,6 +131,17 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
               {source.text}
             </Text>
           </View>
+          {memo ? (
+            <Text
+              variant="caption"
+              color="textTertiary"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              accessibilityLabel={`For: ${memo}`}
+            >
+              For: {memo}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -165,18 +188,13 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
               Not confirmed. You can try again.
             </Text>
           ) : null}
+          {deviceAuth ? (
+            <Text variant="caption" color="textSecondary" accessibilityLiveRegion="polite">
+              {AUTH_LINE[deviceAuth]}
+            </Text>
+          ) : null}
           {authMode === 'hold' ? (
-            <>
-              <View style={styles.holdNote}>
-                <Text variant="callout">
-                  Orb can’t use a fingerprint or PIN for this payment. Press and hold until the button fills to send.
-                </Text>
-                <Text variant="caption" color="textSecondary">
-                  Add a fingerprint or device PIN in Settings to confirm with one touch next time.
-                </Text>
-              </View>
-              <HoldButton disabled={confirmBlocked || preparing} onComplete={() => void exec.confirm()} />
-            </>
+            <HoldButton disabled={confirmBlocked || preparing} onComplete={() => void exec.confirm()} />
           ) : (
             <Button
               label="Confirm"
@@ -299,7 +317,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.warningSoft,
   },
-  holdNote: { gap: space.xs },
   rowIcon: { marginTop: 1 },
   reason: { gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   reasonHead: { flexDirection: 'row', gap: space.sm },

@@ -2,12 +2,13 @@
  * @file Inline status banner with optional actions, plus the pending-payment
  * banner shared by the Wallet tab and the Ask sheet. Tones map to the semantic palette only.
  */
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
-import { publicClient } from '../chain';
 import { txUrl } from '../config';
+import type { OrbApiError } from '../errors';
 import { formatMon, shortAddress } from '../intent';
-import { checkPending, type PendingStatus } from '../pendingTx';
+import type { PendingStatus } from '../pendingTx';
+import type { PendingPhase } from '../pendingView';
 import { colors, radius, space } from '../theme';
 import { Button, IconTile, Text, type IconName } from './ui';
 
@@ -43,7 +44,11 @@ function Banner({
 }) {
   const t = TONES[tone];
   return (
-    <View accessibilityRole="alert" style={[styles.row, { backgroundColor: t.bg, borderColor: t.border }]}>
+    <View
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+      style={[styles.row, { backgroundColor: t.bg, borderColor: t.border }]}
+    >
       <IconTile icon={icon} tone={tone} size={32} />
       <View style={styles.text}>
         <Text variant="captionStrong" color={t.fg}>
@@ -61,47 +66,78 @@ function Banner({
 }
 
 /**
- * Pending-payment banner. Renders nothing unless the slot is pending or unknown.
- * @param props.status Result of `checkPending`.
- * @param props.onRecheck Re-checks the receipt.
- * @returns A banner, or null.
+ * Sentence for a failed pending check. Keeps the last chain result in the copy
+ * when one exists, and never treats the failure as "no payment".
+ * @param error Failure from `usePendingTx`, when the hook has one.
+ * @param status Last chain result. Unchanged by the failure.
+ * @returns Title and body for the error banner.
  */
-export function PendingBanner({ status, onRecheck }: { status: PendingStatus; onRecheck: () => void }) {
-  const [checkError, setCheckError] = useState(false);
+function pendingErrorCopy(error: OrbApiError | null, status: PendingStatus): { title: string; body: string } {
+  const why =
+    error?.code === 'timeout' ? 'The check timed out.' : error?.code === 'parse' ? 'The saved payment couldn’t be read.' : 'The check failed.';
+  const kept = status.kind === 'pending' || status.kind === 'unknown' ? 'Nothing was changed.' : 'Nothing was sent.';
+  return { title: 'Couldn’t check for a payment', body: `${why} ${kept}` };
+}
 
-  // Call the chain check here. On failure, do not call `onRecheck`: that path
-  // treats a throw as "no pending payment" and would remove this banner.
-  const recheck = () => {
-    void (async () => {
-      try {
-        await checkPending(publicClient);
-        setCheckError(false);
-        onRecheck();
-      } catch {
-        setCheckError(true);
-      }
-    })();
-  };
-
-  if (status.kind === 'pending') {
+/**
+ * Pending-payment banner driven by `usePendingTx`.
+ * `loading` is a quiet line, `pending` is the payment, `error` offers Retry,
+ * and `none` renders nothing.
+ * @param props.phase Check phase.
+ * @param props.status Last chain result. Kept when a check throws.
+ * @param props.error Failure behind `phase === 'error'`.
+ * @param props.onRetry Runs the check again. Does not throw.
+ * @returns A banner, a quiet loading row, or null.
+ */
+export function PendingBanner({
+  phase,
+  status,
+  error,
+  onRetry,
+}: {
+  phase: PendingPhase;
+  status: PendingStatus;
+  error: OrbApiError | null;
+  onRetry: () => void;
+}) {
+  if (phase === 'none') return null;
+  if (phase === 'loading') {
     return (
-      <Banner
-        tone={checkError ? 'danger' : 'warning'}
-        icon={checkError ? 'alert-circle' : 'clock'}
-        title={checkError ? 'Couldn’t check this payment' : `Payment pending · ${formatMon(BigInt(status.tx.amountWei), 18)}`}
-        body={
-          checkError
-            ? 'It is still pending. Nothing was changed.'
-            : `To ${shortAddress(status.tx.to)}. Waiting for Monad testnet.`
-        }
+      <View
+        accessible
+        accessibilityLabel="Checking for a payment"
+        accessibilityLiveRegion="polite"
+        style={styles.quiet}
       >
+        <Text variant="caption" color="textTertiary">
+          Checking for a payment
+        </Text>
+      </View>
+    );
+  }
+  if (phase === 'error') {
+    const copy = pendingErrorCopy(error, status);
+    return (
+      <Banner tone="danger" icon="alert-circle" title={copy.title} body={copy.body}>
         <Button
           size="sm"
           variant="secondary"
-          label={checkError ? 'Retry' : 'Check'}
-          accessibilityLabel={checkError ? 'Retry checking the payment' : 'Check payment again'}
-          onPress={recheck}
+          label="Retry"
+          accessibilityLabel="Retry checking for a payment"
+          onPress={onRetry}
         />
+      </Banner>
+    );
+  }
+  if (status.kind === 'pending') {
+    return (
+      <Banner
+        tone="warning"
+        icon="clock"
+        title={`Payment pending · ${formatMon(BigInt(status.tx.amountWei), 18)}`}
+        body={`To ${shortAddress(status.tx.to)}. Waiting for Monad testnet.`}
+      >
+        <Button size="sm" variant="secondary" label="Check" accessibilityLabel="Check payment again" onPress={onRetry} />
       </Banner>
     );
   }
@@ -133,4 +169,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   text: { flex: 1, gap: space.xxs },
+  quiet: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceMuted,
+  },
 });

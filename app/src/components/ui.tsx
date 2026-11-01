@@ -118,7 +118,10 @@ export function Card({
   children,
   style,
   ...rest
-}: { children: ReactNode; style?: StyleProp<ViewStyle> } & Pick<ViewProps, 'accessibilityRole' | 'accessibilityLabel'>) {
+}: { children: ReactNode; style?: StyleProp<ViewStyle> } & Pick<
+  ViewProps,
+  'accessibilityRole' | 'accessibilityLabel' | 'accessibilityLiveRegion' | 'accessible'
+>) {
   return (
     <View {...rest} style={[styles.card, style]}>
       {children}
@@ -182,6 +185,11 @@ type ListRowProps = {
   /** Right-hand content; defaults to a chevron when the row is pressable. */
   trailing?: ReactNode;
   onPress?: () => void;
+  /**
+   * One tertiary line under the title, truncated. Omitted when absent,
+   * so older rows keep their two-line shape.
+   */
+  note?: string;
   /** Hairline above the row (for stacked rows inside a card). */
   divider?: boolean;
   accessibilityLabel?: string;
@@ -191,12 +199,17 @@ type ListRowProps = {
  * Settings-style row: icon tile, title, subtitle, trailing slot.
  * @returns A static or pressable row with a 56-pt minimum height.
  */
-export function ListRow({ title, subtitle, icon, tone, trailing, onPress, divider, accessibilityLabel }: ListRowProps) {
+export function ListRow({ title, subtitle, icon, tone, trailing, onPress, divider, note, accessibilityLabel }: ListRowProps) {
   const content = (
     <>
       {icon && <IconTile icon={icon} tone={tone} />}
       <View style={styles.rowText}>
         <Text variant="bodyStrong">{title}</Text>
+        {note ? (
+          <Text variant="caption" color="textTertiary" numberOfLines={1} ellipsizeMode="tail">
+            {note}
+          </Text>
+        ) : null}
         {subtitle ? (
           <Text variant="caption" color="textSecondary" numberOfLines={2}>
             {subtitle}

@@ -27,7 +27,7 @@ const AVATAR = 36;
  * @returns The scrollable wallet overview.
  */
 export default function WalletScreen() {
-  const { address, email, balance, balanceError, pending, recheckPending, refresh } = useWalletData();
+  const { address, email, balance, balanceError, pending, pendingPhase, pendingError, retryPending, refresh } = useWalletData();
   const activity = useSafeRead(getActivity, pending.kind);
 
   const header = (
@@ -58,7 +58,7 @@ export default function WalletScreen() {
     >
       <View style={styles.top}>
         <BalanceCard address={address} balance={balance} balanceError={balanceError} onRetry={() => void refresh()} />
-        <PendingBanner status={pending} onRecheck={recheckPending} />
+        <PendingBanner phase={pendingPhase} status={pending} error={pendingError} onRetry={retryPending} />
       </View>
       <View>
         <SectionHeader title="Recent activity" action={{ label: 'See all', onPress: () => router.navigate('/activity') }} />
