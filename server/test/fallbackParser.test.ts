@@ -62,4 +62,9 @@ describe('parseFallback', () => {
   it('no address → asks for one', () => {
     expect(parse('dinner was 2 MON').kind).toBe('clarify');
   });
+
+  it('default amount chips stay within the per-tx cap', () => {
+    const r = parseFallback({ contextText: `send to ${RECIPIENT}`, userTexts: ['pay this'], perTxMon: '0.5' });
+    expect(r).toEqual({ kind: 'clarify', question: 'How much MON should I send?', options: ['0.1 MON', '0.5 MON'] });
+  });
 });

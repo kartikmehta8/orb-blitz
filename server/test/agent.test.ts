@@ -2,6 +2,7 @@
  * @file Tool loop, fallback and prompt building with a scripted model. No network.
  */
 import Anthropic from '@anthropic-ai/sdk';
+import { getAddress } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 import { clampReply, runAgent, type CreateMessage } from '../src/agent';
 import { shortAddress } from '../src/intent';
@@ -63,13 +64,172 @@ describe('runAgent tool loop', () => {
   });
 
   it('ask_user ends the loop and becomes the clarification and reply', async () => {
+    const req = makeRequest({
+      context: { source: 'screen', appLabel: 'WhatsApp', text: `${RECIPIENT} ${OTHER}`, capturedAt: 0 },
+    });
     const model = scripted(
-      msg(text('Let me check.'), { type: 'tool_use', name: 'ask_user', input: { question: 'Which address?', options: ['a', 'b'] } }),
+      msg(text('Let me check.'), {
+        type: 'tool_use',
+        name: 'ask_user',
+        input: { question: 'Which address?', options: [RECIPIENT, OTHER] },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(model).toHaveBeenCalledOnce();
+    expect(response.clarification).toEqual({ question: 'Which address?', options: [RECIPIENT, OTHER] });
+    expect(response.reply).toBe('Which address?');
+  });
+
+  it('ask_user address choice uses the raw addresses, not the names beside them', async () => {
+    const req = makeRequest({
+      context: {
+        source: 'screen',
+        appLabel: 'WhatsApp',
+        text: `Rahul ${RECIPIENT} Priya ${OTHER}`,
+        capturedAt: 0,
+      },
+    });
+    const model = scripted(
+      msg({ type: 'tool_use', name: 'ask_user', input: { question: 'Which address?', options: ['Rahul', 'Priya'] } }),
+    );
+    const { response } = await run(model, req);
+    expect(response.meta.fallback).toBe(false);
+    expect(response.intents).toEqual([]);
+    expect(response.clarification).toEqual({ question: 'Which address?', options: [RECIPIENT, OTHER] });
+    expect(response.reply).toBe('Which address?');
+  });
+
+  it('ask_user address recovery keeps at most four addresses', async () => {
+    const third = getAddress('0x2222222222222222222222222222222222222222');
+    const fourth = getAddress('0x3333333333333333333333333333333333333333');
+    const fifth = getAddress('0x4444444444444444444444444444444444444444');
+    const req = makeRequest({
+      context: {
+        source: 'screen',
+        appLabel: 'WhatsApp',
+        text: [RECIPIENT, OTHER, third, fourth, fifth].join(' '),
+        capturedAt: 0,
+      },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: { question: 'Which address?', options: ['a', 'b', 'c', 'd'] },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.meta.fallback).toBe(false);
+    expect(response.clarification?.options).toEqual([RECIPIENT, OTHER, third, fourth]);
+  });
+
+  it('ask_user drops an address that appears nowhere in the request', async () => {
+    const model = scripted(
+      msg({ type: 'tool_use', name: 'ask_user', input: { question: 'Which address?', options: [OTHER, RECIPIENT] } }),
     );
     const { response } = await run(model);
-    expect(model).toHaveBeenCalledOnce();
-    expect(response.clarification).toEqual({ question: 'Which address?', options: ['a', 'b'] });
-    expect(response.reply).toBe('Which address?');
+    expect(response.meta.fallback).toBe(false);
+    expect(response.clarification?.options).toEqual([RECIPIENT]);
+  });
+
+  it('ask_user drops amount chips above the per-tx cap and shortens the address in the reply', async () => {
+    const req = makeRequest({
+      messages: [{ role: 'user', text: `send $5 to ${RECIPIENT}` }],
+      context: null,
+      limits: { perTxMon: '1', dailyRemainingMon: '5' },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: {
+          question: `How much MON should I send to ${RECIPIENT}?`,
+          options: ['0.5 MON', '1 MON', '2 MON', '5 MON'],
+        },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.meta.fallback).toBe(false);
+    expect(response.clarification).toEqual({
+      question: `How much MON should I send to ${shortAddress(RECIPIENT)}?`,
+      options: ['0.5 MON', '1 MON'],
+    });
+    expect(response.reply).toBe(`How much MON should I send to ${shortAddress(RECIPIENT)}?`);
+    expect(response.reply).not.toContain(RECIPIENT);
+  });
+
+  it('ask_user drops amount chips above the remaining daily limit', async () => {
+    const req = makeRequest({
+      messages: [{ role: 'user', text: `send $5 to ${RECIPIENT}` }],
+      context: null,
+      limits: { perTxMon: '5', dailyRemainingMon: '1' },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: { question: 'How much MON?', options: ['0.5 MON', '1 MON', '2 MON', '5 MON'] },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.meta.fallback).toBe(false);
+    expect(response.clarification?.options).toEqual(['0.5 MON', '1 MON']);
+  });
+
+  it('ask_user never offers a free-text chip', async () => {
+    const req = makeRequest({
+      messages: [{ role: 'user', text: `send MON to ${RECIPIENT}` }],
+      context: null,
+      limits: { perTxMon: '1', dailyRemainingMon: '5' },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: {
+          question: 'How much MON should I send?',
+          options: ['0.1 MON', '0.5 MON', '1 MON', 'Enter a different amount'],
+        },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.meta.fallback).toBe(false);
+    expect(response.clarification).toEqual({
+      question: 'How much MON should I send?',
+      options: ['0.1 MON', '0.5 MON', '1 MON'],
+    });
+  });
+
+  it('ask_user replaces amount chips that are all over the cap with the in-cap defaults', async () => {
+    const req = makeRequest({
+      messages: [{ role: 'user', text: `send $5 to ${RECIPIENT}` }],
+      context: null,
+      limits: { perTxMon: '1', dailyRemainingMon: '5' },
+    });
+    const model = scripted(
+      msg({ type: 'tool_use', name: 'ask_user', input: { question: 'How much MON?', options: ['2 MON', '5 MON'] } }),
+    );
+    const { response } = await run(model, req);
+    expect(response.meta.fallback).toBe(false);
+    expect(response.clarification).toEqual({ question: 'How much MON?', options: ['0.1 MON', '0.5 MON', '1 MON'] });
+  });
+
+  it('ask_user leaves no chips when every concrete amount is over the cap and the defaults are too', async () => {
+    const req = makeRequest({
+      messages: [{ role: 'user', text: `send $5 to ${RECIPIENT}` }],
+      context: null,
+      limits: { perTxMon: '0.05', dailyRemainingMon: '5' },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: { question: 'How much MON?', options: ['0.1 MON', '2 MON', 'Enter a different amount'] },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.meta.fallback).toBe(false);
+    expect(response.clarification).toEqual({ question: 'How much MON?', options: [] });
   });
 
   it('stops after 4 iterations with a generic reply', async () => {
@@ -178,6 +338,11 @@ describe('prompt', () => {
 
   it('no context → plain user text', () => {
     expect(buildMessages(makeRequest({ context: null }))).toEqual([{ role: 'user', content: 'pay this' }]);
+  });
+
+  it('tells the model that a chip is a full address or a concrete MON amount', () => {
+    expect(SYSTEM_PROMPT).toContain('full 0x address');
+    expect(SYSTEM_PROMPT).not.toContain('short options');
   });
 
   it('clampReply keeps two sentences and decimals intact', () => {

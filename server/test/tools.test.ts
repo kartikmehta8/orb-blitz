@@ -177,12 +177,18 @@ describe('other tools', () => {
     expect(await runTool('get_tx_status', { hash: '0x12' }, makeCtx())).toMatchObject({ error: 'BAD_TOOL_INPUT' });
   });
 
-  it('ask_user records the clarification; >4 options rejected', async () => {
+  it('ask_user records a concrete clarification; >4 options rejected', async () => {
     const ctx = makeCtx();
-    expect(await runTool('ask_user', { question: 'Which one?', options: ['a', 'b'] }, ctx)).toEqual({ ok: true });
-    expect(ctx.clarification).toEqual({ question: 'Which one?', options: ['a', 'b'] });
+    expect(await runTool('ask_user', { question: 'Which one?', options: [RECIPIENT, 'Rahul'] }, ctx)).toEqual({ ok: true });
+    expect(ctx.clarification).toEqual({ question: 'Which one?', options: [RECIPIENT] });
     const tooMany = await runTool('ask_user', { question: 'q', options: ['1', '2', '3', '4', '5'] }, makeCtx());
     expect(tooMany).toMatchObject({ error: 'BAD_TOOL_INPUT' });
+  });
+
+  it('ask_user tells the model that chips are concrete addresses or MON amounts', () => {
+    const ask = TOOL_DEFS.find((t) => t.name === 'ask_user');
+    expect(ask?.description).toContain('full 0x address');
+    expect(ask?.description).toContain('Enter a different amount');
   });
 
   it('exposes five tool definitions with object schemas', () => {
