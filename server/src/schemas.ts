@@ -3,6 +3,7 @@
  * Everything that enters the server is parsed here first.
  */
 import { z } from 'zod';
+import { MAX_LABEL_CHARS } from './fallbackParser';
 import { CHAIN_ID, toChecksumAddress, type Intent } from './intent';
 
 /** Max characters of captured screen/clipboard text (the app truncates at 4000). */
@@ -78,7 +79,21 @@ const IntentSchema: z.ZodType<Intent> = z.object({
   parsedBy: z.enum(['agent', 'fallback']),
 });
 
-const ClarificationSchema = z.object({ question: z.string(), options: z.array(z.string()) });
+/**
+ * One chip's display name. Null for an amount, or for an address whose name
+ * is not written next to it. Omitted entirely (not an all-null array) when
+ * no option has a name, so older clients still see `{ question, options }`.
+ * When present, the array is parallel to `options`.
+ */
+const ClarificationSchema = z
+  .object({
+    question: z.string(),
+    options: z.array(z.string()),
+    labels: z.array(z.string().min(1).max(MAX_LABEL_CHARS).nullable()).optional(),
+  })
+  .refine((c) => c.labels === undefined || c.labels.length === c.options.length, {
+    message: 'labels must be the same length as options',
+  });
 export type Clarification = z.infer<typeof ClarificationSchema>;
 
 /** Response body returned to the app. */

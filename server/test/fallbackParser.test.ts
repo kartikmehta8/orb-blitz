@@ -2,7 +2,7 @@
  * @file Offline fallback parser cases.
  */
 import { describe, expect, it } from 'vitest';
-import { parseFallback } from '../src/fallbackParser';
+import { LABEL_RADIUS, parseFallback } from '../src/fallbackParser';
 import { OTHER, RECIPIENT } from './helpers';
 
 const parse = (contextText: string | null, ...userTexts: string[]) =>
@@ -21,6 +21,44 @@ describe('parseFallback', () => {
   it('2 addresses → clarification with both options', () => {
     const r = parse(`2 MON to ${RECIPIENT} or ${OTHER}`);
     expect(r).toEqual({ kind: 'clarify', question: 'I see 2 addresses. Which one?', options: [RECIPIENT, OTHER] });
+  });
+
+  it('labels an address with the name on the same line', () => {
+    const r = parse(`Rahul ${RECIPIENT}\nPriya ${OTHER}`);
+    expect(r).toEqual({
+      kind: 'clarify',
+      question: 'I see 2 addresses. Which one?',
+      options: [RECIPIENT, OTHER],
+      labels: ['Rahul', 'Priya'],
+    });
+  });
+
+  it('label is null when the name is not next to that address', () => {
+    const r = parse(`Rahul\n${RECIPIENT}\n${OTHER}`);
+    expect(r).toEqual({
+      kind: 'clarify',
+      question: 'I see 2 addresses. Which one?',
+      options: [RECIPIENT, OTHER],
+    });
+    expect(r).not.toHaveProperty('labels');
+  });
+
+  it('ignores a name farther than the adjacency window on the same line', () => {
+    // The name ends just outside the same-line window checked beside the address.
+    const r = parse(`Rahul${' '.repeat(LABEL_RADIUS)}${RECIPIENT} Priya ${OTHER}`);
+    expect(r).toMatchObject({ options: [RECIPIENT, OTHER], labels: [null, 'Priya'] });
+  });
+
+  it('rejects a name longer than the label cap and a label that contains an address', () => {
+    const huge = `A${'a'.repeat(40)}`;
+    const r = parse(`${huge} ${RECIPIENT}\nPriya ${OTHER}`);
+    expect(r).toMatchObject({ options: [RECIPIENT, OTHER], labels: [null, 'Priya'] });
+  });
+
+  it('amount chips carry no labels', () => {
+    const r = parse(`Rahul ${RECIPIENT}`);
+    expect(r).toMatchObject({ kind: 'clarify', question: 'How much MON should I send?', options: ['0.1 MON', '0.5 MON', '1 MON'] });
+    expect(r).not.toHaveProperty('labels');
   });
 
   it('same address twice in different case counts once', () => {

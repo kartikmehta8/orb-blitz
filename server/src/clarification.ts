@@ -6,7 +6,7 @@
  * this, but it also returns names, free-text prompts, and amounts over the cap.
  */
 import { formatEther } from 'viem';
-import { amountsWithinCap, defaultAmountOptions, parseFallback } from './fallbackParser';
+import { amountsWithinCap, defaultAmountOptions, labelField, labelsForOptions, MAX_LABEL_CHARS, parseFallback } from './fallbackParser';
 import { parseMon, shortAddress, stripZeroWidth, toChecksumAddress } from './intent';
 import type { Clarification } from './schemas';
 
@@ -19,6 +19,12 @@ const MAX_OPTIONS = 4;
 export type ClarificationSource = {
   question: string;
   options: string[];
+  /**
+   * Names the model proposed, parallel to `options` by index. Missing entries
+   * mean "no proposal" (a grounded name may still be used). A string is kept
+   * only when it is that address's grounded name.
+   */
+  labels?: (string | null)[];
   perTxMon: string;
   dailyRemainingMon: string;
   /** Screen or clipboard text, or null when the user excluded it. */
@@ -42,17 +48,50 @@ export type ClarificationSource = {
  * Full addresses in the question are shortened. The reply is this question,
  * and every other reply already uses the short form. The option value stays
  * the full address, because the app shortens only the chip label.
+ *
+ * `labels`, when present, stays aligned with the options that survive filtering.
+ * A model-supplied name is kept only when it is the name actually written next
+ * to that address; an invented name becomes null and is not replaced with a
+ * different one. Amount chips are always null. With no proposal, the grounded
+ * name is used. The field is omitted when every label is null.
  * @param source Model question and options, caps, and the texts an address must appear in.
  * @returns Clarification safe to return to the app.
  */
 export function sanitizeClarification(source: ClarificationSource): Clarification {
   const capMon = effectiveCapMon(source.perTxMon, source.dailyRemainingMon);
   const texts = [source.contextText ?? '', ...source.userTexts];
-  const kept = concreteOptions(source.options, texts, capMon);
+  const kept = concreteOptions(source.options, source.labels ?? [], texts, capMon);
+  const chosen =
+    kept.length > 0
+      ? kept
+      : recoverOptions(source, texts, capMon).map((option) => ({ option, proposed: undefined }));
+  const grounded = labelsForOptions(
+    chosen.map((item) => item.option),
+    texts,
+  );
+  const labels = chosen.map((item, index) => acceptLabel(item.proposed, grounded[index] ?? null));
   return {
     question: shortenAddresses(source.question),
-    options: kept.length > 0 ? kept : recoverOptions(source, texts, capMon),
+    options: chosen.map((item) => item.option),
+    ...labelField(labels),
   };
+}
+
+/**
+ * A proposed name is trusted only when it is the grounded one (same letters,
+ * source spelling). No proposal means "use the grounded name". An invented
+ * name, an over-long one, or one that contains an address is null — we do not
+ * silently swap in a different name from the text.
+ * @param proposed What the model sent for this chip, if anything.
+ * @param grounded Name written next to the address, or null.
+ * @returns The label to store, or null.
+ */
+function acceptLabel(proposed: string | null | undefined, grounded: string | null): string | null {
+  if (proposed == null || proposed.trim() === '') return grounded;
+  const trimmed = proposed.trim();
+  if (trimmed.length > MAX_LABEL_CHARS || /0x[a-fA-F0-9]/i.test(trimmed)) return null;
+  if (!grounded || trimmed.toLowerCase() !== grounded.toLowerCase()) return null;
+  return grounded;
 }
 
 /**
@@ -69,18 +108,26 @@ function effectiveCapMon(perTxMon: string, dailyRemainingMon: string): string {
   return formatEther(perTx < daily ? perTx : daily);
 }
 
-/** Model options that are an in-scope address or an in-cap amount, in model order. */
-function concreteOptions(options: string[], texts: string[], capMon: string): string[] {
-  const kept: string[] = [];
+type KeptOption = { option: string; proposed?: string | null };
+
+/** Model options that are an in-scope address or an in-cap amount, in model order. The proposal at the same index travels with the option. */
+function concreteOptions(
+  options: string[],
+  proposed: (string | null)[],
+  texts: string[],
+  capMon: string,
+): KeptOption[] {
+  const kept: KeptOption[] = [];
   const seen = new Set<string>();
-  for (const raw of options) {
+  for (let i = 0; i < options.length && kept.length < MAX_OPTIONS; i++) {
+    const raw = options[i];
+    if (raw === undefined) continue;
     const option = concreteOption(raw.trim(), texts, capMon);
     if (!option) continue;
     const key = optionKey(option);
     if (seen.has(key)) continue;
     seen.add(key);
-    kept.push(option);
-    if (kept.length === MAX_OPTIONS) break;
+    kept.push({ option, proposed: proposed[i] });
   }
   return kept;
 }
@@ -141,7 +188,7 @@ function recoverOptions(source: ClarificationSource, texts: string[], capMon: st
     perTxMon: capMon,
   });
   if (parsed.kind !== 'clarify') return [];
-  const kept = concreteOptions(parsed.options, texts, capMon);
+  const kept = concreteOptions(parsed.options, [], texts, capMon).map((item) => item.option);
   if (kept.length > 0) return kept;
   // It offered amount chips and every one was over the cap. Use the standard defaults.
   const offeredAmount = parsed.options.some((option) => AMOUNT_OPTION.test(option.trim()));

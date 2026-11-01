@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { clampReply, runAgent, type CreateMessage } from '../src/agent';
 import { shortAddress } from '../src/intent';
 import { buildMessages, SYSTEM_PROMPT } from '../src/prompt';
+import { AgentResponseSchema } from '../src/schemas';
 import { makeRequest, mockChain, msg, OTHER, RECIPIENT, scripted } from './helpers';
 
 const prepare = (to: string, amount_mon: string) =>
@@ -95,7 +96,11 @@ describe('runAgent tool loop', () => {
     const { response } = await run(model, req);
     expect(response.meta.fallback).toBe(false);
     expect(response.intents).toEqual([]);
-    expect(response.clarification).toEqual({ question: 'Which address?', options: [RECIPIENT, OTHER] });
+    expect(response.clarification).toEqual({
+      question: 'Which address?',
+      options: [RECIPIENT, OTHER],
+      labels: ['Rahul', 'Priya'],
+    });
     expect(response.reply).toBe('Which address?');
   });
 
@@ -130,6 +135,143 @@ describe('runAgent tool loop', () => {
     const { response } = await run(model);
     expect(response.meta.fallback).toBe(false);
     expect(response.clarification?.options).toEqual([RECIPIENT]);
+  });
+
+  it('ask_user keeps a label only when that name sits next to the address', async () => {
+    const req = makeRequest({
+      context: {
+        source: 'screen',
+        appLabel: 'WhatsApp',
+        text: `Rahul ${RECIPIENT}\nPriya ${OTHER}`,
+        capturedAt: 0,
+      },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: {
+          question: 'Which address?',
+          options: [RECIPIENT, OTHER],
+          labels: ['Rahul', 'Priya'],
+        },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.meta.fallback).toBe(false);
+    expect(response.clarification).toEqual({
+      question: 'Which address?',
+      options: [RECIPIENT, OTHER],
+      labels: ['Rahul', 'Priya'],
+    });
+  });
+
+  it('ask_user rejects a model-invented label and does not substitute another name', async () => {
+    const req = makeRequest({
+      context: {
+        source: 'screen',
+        appLabel: 'WhatsApp',
+        text: `Rahul ${RECIPIENT}\nPriya ${OTHER}`,
+        capturedAt: 0,
+      },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: {
+          question: 'Which address?',
+          options: [RECIPIENT, OTHER],
+          labels: ['Satoshi', 'Priya'],
+        },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.clarification).toEqual({
+      question: 'Which address?',
+      options: [RECIPIENT, OTHER],
+      labels: [null, 'Priya'],
+    });
+  });
+
+  it('ask_user rejects a label that contains an address', async () => {
+    const req = makeRequest({
+      context: {
+        source: 'screen',
+        appLabel: 'WhatsApp',
+        text: `Rahul ${RECIPIENT}\nPriya ${OTHER}`,
+        capturedAt: 0,
+      },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: {
+          question: 'Which address?',
+          options: [RECIPIENT, OTHER],
+          labels: [`Rahul ${RECIPIENT}`, 'Priya'],
+        },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.clarification?.labels).toEqual([null, 'Priya']);
+  });
+
+  it('ask_user keeps labels aligned with the options that survive filtering', async () => {
+    const req = makeRequest({
+      context: {
+        source: 'screen',
+        appLabel: 'WhatsApp',
+        text: `Rahul ${RECIPIENT}\nPriya ${OTHER}`,
+        capturedAt: 0,
+      },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: {
+          question: 'Which address?',
+          options: [RECIPIENT, 'nope', OTHER],
+          labels: ['Rahul', 'Ghost', 'Priya'],
+        },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.clarification).toEqual({
+      question: 'Which address?',
+      options: [RECIPIENT, OTHER],
+      labels: ['Rahul', 'Priya'],
+    });
+  });
+
+  it('ask_user amount options have a null label', async () => {
+    const req = makeRequest({
+      context: {
+        source: 'screen',
+        appLabel: 'WhatsApp',
+        text: `Rahul ${RECIPIENT}`,
+        capturedAt: 0,
+      },
+    });
+    const model = scripted(
+      msg({
+        type: 'tool_use',
+        name: 'ask_user',
+        input: {
+          question: 'How much, and to whom?',
+          options: ['0.5 MON', RECIPIENT],
+          labels: ['half', 'Rahul'],
+        },
+      }),
+    );
+    const { response } = await run(model, req);
+    expect(response.clarification).toEqual({
+      question: 'How much, and to whom?',
+      options: ['0.5 MON', RECIPIENT],
+      labels: [null, 'Rahul'],
+    });
   });
 
   it('ask_user drops amount chips above the per-tx cap and shortens the address in the reply', async () => {
@@ -298,6 +440,24 @@ describe('runAgent fallback', () => {
     expect(response.clarification).toEqual({ question: 'I see 2 addresses. Which one?', options: [RECIPIENT, OTHER] });
   });
 
+  it('fallback labels a name that sits on the same line as the address', async () => {
+    const req = makeRequest({
+      context: {
+        source: 'screen',
+        appLabel: 'WhatsApp',
+        text: `Rahul ${RECIPIENT}\nPriya ${OTHER}`,
+        capturedAt: 0,
+      },
+    });
+    const { response } = await run(null, req);
+    expect(response.meta.fallback).toBe(true);
+    expect(response.clarification).toEqual({
+      question: 'I see 2 addresses. Which one?',
+      options: [RECIPIENT, OTHER],
+      labels: ['Rahul', 'Priya'],
+    });
+  });
+
   it('fallback validation failure → error copy as reply', async () => {
     const req = makeRequest({ limits: { perTxMon: '0.1', dailyRemainingMon: '5' } });
     const { response, errorCodes } = await run(null, req);
@@ -312,6 +472,37 @@ describe('runAgent fallback', () => {
     expect(response.intents).toHaveLength(1);
     expect(response.intents[0]?.parsedBy).toBe('agent');
     expect(response.reply).toBe('Payment ready to confirm.');
+  });
+});
+
+describe('clarification schema', () => {
+  const response = {
+    requestId: 't',
+    reply: 'Which address?',
+    intents: [],
+    meta: { model: 'm', toolCalls: [], ms: 1, fallback: false },
+  };
+
+  it('still accepts a clarification that has no labels', () => {
+    const parsed = AgentResponseSchema.parse({
+      ...response,
+      clarification: { question: 'Which address?', options: [RECIPIENT] },
+    });
+    expect(parsed.clarification?.labels).toBeUndefined();
+  });
+
+  it('keeps labels parallel to options and rejects a mismatched length', () => {
+    const kept = AgentResponseSchema.parse({
+      ...response,
+      clarification: { question: 'Which address?', options: [RECIPIENT, OTHER], labels: ['Rahul', null] },
+    });
+    expect(kept.clarification?.labels).toEqual(['Rahul', null]);
+    expect(
+      AgentResponseSchema.safeParse({
+        ...response,
+        clarification: { question: 'Which address?', options: [RECIPIENT], labels: ['Rahul', 'Priya'] },
+      }).success,
+    ).toBe(false);
   });
 });
 

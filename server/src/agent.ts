@@ -184,7 +184,11 @@ async function toolLoop(
 async function runFallback(req: AgentRequest, ctx: ToolCtx, errorCodes: string[]): Promise<Answer> {
   const parsed = parseFallback({ contextText: req.context?.text ?? null, userTexts: ctx.userTexts, perTxMon: ctx.perTxMon });
   if (parsed.kind === 'clarify') {
-    const clarification = { question: parsed.question, options: parsed.options };
+    const clarification = {
+      question: parsed.question,
+      options: parsed.options,
+      ...(parsed.labels ? { labels: parsed.labels } : {}),
+    };
     return { reply: parsed.question, intents: [], clarification, fallback: true };
   }
   const result = await prepareTransfer(ctx.chain, {
