@@ -3,7 +3,8 @@
  *
  * `readDeviceAuth` separates "nothing enrolled" from "the lookup failed".
  * `approvalMode` is what the current confirm card already switches on:
- * a system prompt, a hold, or blocked (`null`) while loading or after an error.
+ * a system prompt, a hold, or blocked (`null`) while the lookup is in flight.
+ * `deviceAuth` stays `'error'` when the lookup throws; the button falls back to hold.
  */
 
 /** Result of the LocalAuthentication probes. */
@@ -47,14 +48,15 @@ export async function readDeviceAuth(probe: AuthProbe): Promise<DeviceAuthStatus
 /**
  * Button switch for the confirm card that is on main today.
  *
- * PIN uses the same system prompt as biometrics. `error` is `null` so Confirm
- * stays disabled instead of falling through to the hold copy. Not-enrolled
- * and no-hardware stay on hold, which is the path that card already renders.
+ * PIN uses the same system prompt as biometrics. A lookup error uses hold,
+ * the same path as before device auth could report `error`, so Confirm is
+ * not stuck disabled. Not-enrolled and no-hardware stay on hold. Null (still
+ * loading) stays blocked.
  * @param status Device lookup, or null while it is in flight.
  * @returns `biometric`, `hold`, or null.
  */
 export function approvalMode(status: DeviceAuthStatus | null): 'biometric' | 'hold' | null {
-  if (status === null || status === 'error') return null;
+  if (status === null) return null;
   if (status === 'biometric' || status === 'pin') return 'biometric';
   return 'hold';
 }

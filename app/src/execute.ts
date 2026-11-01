@@ -51,7 +51,7 @@ type IntentExecution = {
   authMode: AuthMode | null;
   /**
    * Full device lookup. `pin` still sets `authMode` to `biometric` (same system prompt).
-   * `not-enrolled` and `unavailable` set `authMode` to `hold`. `error` sets it to null.
+   * `not-enrolled`, `unavailable`, and `error` set `authMode` to `hold`. `deviceAuth` still reports `error`.
    */
   deviceAuth: DeviceAuthStatus | null;
   /** Approves and sends. With `hold` auth, call it only after the hold completes. */
@@ -240,7 +240,14 @@ export function useIntentExecution(
         return;
       }
 
-      const tx: PendingTx = { hash, intentId: intent.id, to: intent.to, amountWei: intent.amountWei, sentAt };
+      const tx: PendingTx = {
+        hash,
+        intentId: intent.id,
+        to: intent.to,
+        amountWei: intent.amountWei,
+        sentAt,
+        ...(intent.memo ? { memo: intent.memo } : {}),
+      };
       txRef.current = tx;
       // Persist before waiting so a dismissed sheet or killed app can resume it.
       await savePending(tx).catch(() => undefined);

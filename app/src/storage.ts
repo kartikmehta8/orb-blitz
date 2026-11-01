@@ -162,8 +162,19 @@ export async function markExecuted(id: string): Promise<void> {
   if (!ids.includes(id)) await writeJson(KEYS.executed, [...ids, id].slice(-MAX_EXECUTED));
 }
 
-/** A finished payment, shown in the Activity tab. Chain data only, never screen text. */
-export type ActivityTx = { hash: Hash; to: Address; amountWei: string; status: 'confirmed' | 'failed'; at: number };
+/**
+ * A finished payment, shown in the Activity tab. Chain data plus an optional
+ * display memo. Records written before memos have no `memo` field.
+ */
+export type ActivityTx = {
+  hash: Hash;
+  to: Address;
+  amountWei: string;
+  status: 'confirmed' | 'failed';
+  at: number;
+  /** Display-only note from the intent, e.g. "dinner". Absent on older records. */
+  memo?: string;
+};
 
 const isActivityTx = (v: unknown): v is ActivityTx =>
   isRecord(v) &&
@@ -172,7 +183,8 @@ const isActivityTx = (v: unknown): v is ActivityTx =>
   toChecksumAddress(v.to) !== null &&
   isWeiString(v.amountWei) &&
   (v.status === 'confirmed' || v.status === 'failed') &&
-  typeof v.at === 'number';
+  typeof v.at === 'number' &&
+  (v.memo === undefined || typeof v.memo === 'string');
 
 /**
  * Reads recent payments, newest first. A missing key or an empty list is

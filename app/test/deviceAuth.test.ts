@@ -23,9 +23,13 @@ describe('readDeviceAuth', () => {
 
   it('returns error when a probe throws, which is not the not-enrolled result', async () => {
     expect(await readDeviceAuth(probe({ hasHardwareAsync: async () => Promise.reject(new Error('sensor')) }))).toBe('error');
-    expect(approvalMode('error')).toBeNull();
     expect(approvalMode('not-enrolled')).toBe('hold');
     expect(approvalMode('pin')).toBe('biometric');
     expect(approvalMode('unavailable')).toBe('hold');
+  });
+
+  it('maps a lookup error to hold and still leaves loading blocked', () => {
+    expect(approvalMode('error')).toBe('hold');
+    expect(approvalMode(null)).toBeNull();
   });
 });

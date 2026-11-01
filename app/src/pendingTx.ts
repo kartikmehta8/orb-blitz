@@ -11,8 +11,16 @@ import { addSpend } from './limits';
 import { OrbApiError } from './errors';
 import { addActivity, addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readStored, removeKey, writeJson } from './storage';
 
-/** A sent, unconfirmed payment. Chain data only, never screen text. */
-export type PendingTx = { hash: Hash; intentId: string; to: Address; amountWei: string; sentAt: number };
+/** A sent, unconfirmed payment. Chain data, plus the intent's display memo when it had one. */
+export type PendingTx = {
+  hash: Hash;
+  intentId: string;
+  to: Address;
+  amountWei: string;
+  sentAt: number;
+  /** Copied from the intent so a later receipt can store it on the activity row. */
+  memo?: string;
+};
 
 /** Result of checking a pending payment against the chain. */
 export type PendingStatus =
@@ -68,7 +76,15 @@ export async function finalizePending(tx: PendingTx, status: 'success' | 'revert
   if (confirmed) {
     await Promise.all([addSpend(BigInt(tx.amountWei)), addRecipient(tx.to), markExecuted(tx.intentId)]);
   }
-  await addActivity({ hash: tx.hash, to: tx.to, amountWei: tx.amountWei, status: confirmed ? 'confirmed' : 'failed', at: Date.now() });
+  const memo = typeof tx.memo === 'string' && tx.memo.length > 0 ? tx.memo : undefined;
+  await addActivity({
+    hash: tx.hash,
+    to: tx.to,
+    amountWei: tx.amountWei,
+    status: confirmed ? 'confirmed' : 'failed',
+    at: Date.now(),
+    ...(memo ? { memo } : {}),
+  });
 }
 
 /**
