@@ -4,9 +4,7 @@
  * `EXPO_PUBLIC_*` values are inlined into the JS bundle at build time, so they
  * are public. `agentToken` is demo-grade auth only (see README).
  */
-import { defineChain } from 'viem';
-import { monadTestnet as viemMonadTestnet } from 'viem/chains';
-import { CHAIN_ID } from './intent';
+import { MONAD_TESTNET_EXPLORER_URL, MONAD_TESTNET_RPC_URL, monadTestnetChain } from './intent';
 
 const env = process.env;
 
@@ -16,18 +14,13 @@ export const config = {
   /** Agent server base URL, no trailing slash. */
   agentUrl: (env.EXPO_PUBLIC_AGENT_URL ?? '').replace(/\/+$/, ''),
   agentToken: env.EXPO_PUBLIC_AGENT_TOKEN ?? '',
-  rpcUrl: env.EXPO_PUBLIC_MONAD_RPC_URL || 'https://testnet-rpc.monad.xyz',
-  explorerUrl: (env.EXPO_PUBLIC_EXPLORER_URL || 'https://testnet.monadvision.com').replace(/\/+$/, ''),
+  rpcUrl: env.EXPO_PUBLIC_MONAD_RPC_URL || MONAD_TESTNET_RPC_URL,
+  explorerUrl: (env.EXPO_PUBLIC_EXPLORER_URL || MONAD_TESTNET_EXPLORER_URL).replace(/\/+$/, ''),
   faucetUrl: 'https://faucet.monad.xyz',
 } as const;
 
 /** Monad testnet with this app's RPC and explorer. */
-export const monadTestnet = defineChain({
-  ...viemMonadTestnet,
-  id: CHAIN_ID,
-  rpcUrls: { default: { http: [config.rpcUrl] } },
-  blockExplorers: { default: { name: 'MonadVision', url: config.explorerUrl } },
-});
+export const monadTestnet = monadTestnetChain(config.rpcUrl, config.explorerUrl);
 
 /** Default and hard-maximum spend caps, in MON. */
 export const LIMIT_DEFAULTS = { perTxMon: '1', dailyMon: '5', hardMaxMon: '10' } as const;

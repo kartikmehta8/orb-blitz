@@ -10,5 +10,5 @@ import { config, monadTestnet } from './config';
 /** Shared public client for balances, receipts and transfer preparation. */
 export const publicClient = createPublicClient({
   chain: monadTestnet,
-  transport: http(config.rpcUrl, { retryCount: 3, retryDelay: 300 }),
+  transport: http(config.rpcUrl, { retryCount: 3, retryDelay: 300, timeout: 10_000 }),
 });

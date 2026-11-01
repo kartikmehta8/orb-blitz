@@ -96,13 +96,22 @@ describe('prepare_native_transfer', () => {
     expect(out.message).toContain('0.2021 MON');
   });
 
-  it('contract recipient → warning and estimateGas × 1.1', async () => {
+  it('contract recipient uses the Monad 7.5% gas-limit margin', async () => {
     const chain = mockChain({ code: '0x6080', gas: 30_000n });
     const ctx = makeCtx({ chain });
     await transfer({}, ctx);
-    expect(ctx.intents[0]).toMatchObject({ gasLimit: '33000', recipientIsContract: true });
+    // 30_000 * 10_750 / 10_000 = 32_250. Charged on the limit, so the margin is the fee.
+    expect(ctx.intents[0]).toMatchObject({ gasLimit: '32250', recipientIsContract: true });
     expect(ctx.intents[0]?.warnings).toContain('RECIPIENT_IS_CONTRACT');
     expect(chain.estimateGas).toHaveBeenCalledOnce();
+  });
+
+  it('gas-limit margin rounds up a fractional gas unit', async () => {
+    const chain = mockChain({ code: '0x6080', gas: 10_001n });
+    const ctx = makeCtx({ chain });
+    await transfer({}, ctx);
+    // (10_001 * 10_750 + 9_999) / 10_000 = 10_752, not the truncated 10_751.
+    expect(ctx.intents[0]?.gasLimit).toBe('10752');
   });
 
   it('self transfer → SELF_TRANSFER warning', async () => {

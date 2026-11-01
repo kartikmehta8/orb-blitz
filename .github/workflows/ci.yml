@@ -6,6 +6,13 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   server:
     name: server
@@ -17,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.20.2'
+          node-version: '22.23.4'
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci
@@ -38,7 +45,7 @@ jobs:
           version: 10.33.4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.20.2'
+          node-version: '22.23.4'
           cache: pnpm
           cache-dependency-path: app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile

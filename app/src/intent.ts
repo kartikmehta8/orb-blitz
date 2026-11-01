@@ -9,14 +9,54 @@
  * address validity, provenance (the recipient must appear in the screen
  * context or a user message), amount format, spend caps and balance.
  */
-import { formatEther, getAddress, parseEther, zeroAddress, type Address, type PublicClient } from 'viem';
+import { defineChain, formatEther, getAddress, parseEther, zeroAddress, type Address, type Chain, type PublicClient } from 'viem';
 
 /** Monad testnet. The only chain this product ever touches. */
 export const CHAIN_ID = 10143 as const;
+/**
+ * Public testnet HTTP RPC.
+ * @see https://docs.monad.xyz/developer-essentials/testnets
+ */
+export const MONAD_TESTNET_RPC_URL = 'https://testnet-rpc.monad.xyz';
+/**
+ * MonadVision explorer. The other listed explorer is Monadscan; links in this app use MonadVision.
+ * @see https://docs.monad.xyz/developer-essentials/testnets
+ */
+export const MONAD_TESTNET_EXPLORER_URL = 'https://testnet.monadvision.com';
+/** Native currency. A MON-gwei is 10^-9 MON, so MON has 18 decimals. */
+export const MONAD_NATIVE_CURRENCY = { name: 'MON', symbol: 'MON', decimals: 18 } as const;
+
+/**
+ * Monad testnet chain. Callers may substitute the RPC or explorer; id and currency stay fixed.
+ * @param rpcUrl HTTP JSON-RPC URL.
+ * @param explorerUrl Explorer base URL, no trailing slash.
+ * @returns The viem chain definition.
+ */
+export function monadTestnetChain(rpcUrl: string, explorerUrl: string): Chain {
+  return defineChain({
+    id: CHAIN_ID,
+    name: 'Monad Testnet',
+    nativeCurrency: MONAD_NATIVE_CURRENCY,
+    rpcUrls: { default: { http: [rpcUrl] } },
+    blockExplorers: { default: { name: 'MonadVision', url: explorerUrl } },
+    testnet: true,
+  });
+}
+
 /** Intents expire five minutes after creation. */
 const INTENT_TTL_MS = 5 * 60_000;
-/** Gas for a plain EOA-to-EOA MON transfer. */
+/** Gas for a plain EOA-to-EOA MON transfer. Always 21,000; do not estimate. */
 const EOA_GAS_LIMIT = 21_000n;
+/**
+ * 7.5% (10_750 bps). Monad bills the gas limit, so this margin is MON spent.
+ * Rounds up. @see https://docs.monad.xyz/developer-essentials/wallet-developers
+ */
+const GAS_LIMIT_MARGIN_BPS = 10_750n;
+
+/** Applies the Monad gas-limit margin to an `eth_estimateGas` result. */
+function withMonadGasMargin(estimated: bigint): bigint {
+  return (estimated * GAS_LIMIT_MARGIN_BPS + 9_999n) / 10_000n;
+}
 /** Max intents the agent may create per request. */
 export const MAX_INTENTS_PER_REQUEST = 3;
 
@@ -221,7 +261,7 @@ export async function prepareTransfer(client: ChainReader, req: TransferRequest)
     ]);
     const isContract = !!code && code !== '0x';
     const gasLimit = isContract
-      ? ((await client.estimateGas({ account: req.wallet, to, value: amount })) * 110n) / 100n
+      ? withMonadGasMargin(await client.estimateGas({ account: req.wallet, to, value: amount }))
       : EOA_GAS_LIMIT;
     const maxFee = fees.maxFeePerGas;
     const fee = gasLimit * maxFee;
