@@ -36,7 +36,7 @@ export function HoldButton({ disabled, onComplete }: { disabled: boolean; onComp
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Hold to confirm"
-      accessibilityHint="Press and hold for one and a half seconds to send"
+      accessibilityHint="Press and hold until the button fills. That sends the payment."
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPressIn={start}
@@ -55,7 +55,7 @@ export function HoldButton({ disabled, onComplete }: { disabled: boolean; onComp
 const styles = StyleSheet.create({
   button: {
     minHeight: 52,
-    borderRadius: radius.md + 2,
+    borderRadius: radius.pill,
     backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',

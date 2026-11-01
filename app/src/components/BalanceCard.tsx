@@ -5,14 +5,14 @@
  */
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { Address } from 'viem';
 import { addressUrl, config } from '../config';
 import { formatMon, shortAddress } from '../intent';
 import { colors, HIT, radius, space } from '../theme';
 import { monValue } from './format';
 import { ReceiveSheet } from './ReceiveSheet';
-import { Card, Text, type IconName } from './ui';
+import { Button, Card, Text, type IconName } from './ui';
 import { useCopy } from './useCopy';
 
 const ACTION_SIZE = 52;
@@ -54,7 +54,7 @@ function QuickAction({
       {({ pressed }) => (
         <>
           <View style={[styles.actionCircle, primary && styles.actionPrimary, pressed && styles.pressed]}>
-            <Feather name={icon} size={20} color={primary ? colors.textInverse : colors.primary} />
+            <Feather name={icon} size={20} color={primary ? colors.textInverse : colors.text} />
           </View>
           <Text variant="captionStrong" numberOfLines={1}>
             {label}
@@ -72,7 +72,18 @@ function QuickAction({
  * @param props.balanceError Last balance fetch failed.
  * @returns The card plus its Receive sheet.
  */
-export function BalanceCard({ address, balance, balanceError }: { address: Address | null; balance: bigint | null; balanceError: boolean }) {
+export function BalanceCard({
+  address,
+  balance,
+  balanceError,
+  onRetry,
+}: {
+  address: Address | null;
+  balance: bigint | null;
+  balanceError: boolean;
+  /** Loads the balance again. */
+  onRetry?: () => void;
+}) {
   const { copied, copy } = useCopy();
   const [receiveOpen, setReceiveOpen] = useState(false);
   const copyAddress = () => address && void copy(address);
@@ -97,11 +108,14 @@ export function BalanceCard({ address, balance, balanceError }: { address: Addre
           <View style={styles.placeholder} accessible accessibilityLabel="Balance loading" />
         )}
         {balanceError ? (
-          <View style={styles.inline} accessibilityLiveRegion="polite">
-            <Feather name="alert-circle" size={14} color={colors.danger} />
-            <Text variant="caption" color="danger" style={styles.flex}>
-              {"Couldn't load your balance. Pull down to retry."}
-            </Text>
+          <View style={styles.error} accessibilityRole="alert">
+            <View style={styles.inline}>
+              <Feather name="alert-circle" size={16} color={colors.danger} />
+              <Text variant="caption" color="danger" style={styles.flex}>
+                Couldn’t load your balance.
+              </Text>
+            </View>
+            {onRetry ? <Button size="sm" variant="secondary" icon="refresh-cw" label="Retry" onPress={onRetry} /> : null}
           </View>
         ) : null}
 
@@ -119,8 +133,8 @@ export function BalanceCard({ address, balance, balanceError }: { address: Addre
             <Feather name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.success : colors.textTertiary} />
           </Pressable>
         ) : (
-          <View style={styles.chip}>
-            <ActivityIndicator size="small" color={colors.textTertiary} />
+          <View style={styles.chip} accessibilityLabel="Creating your wallet">
+            <View style={styles.chipSkeleton} />
             <Text variant="caption" color="textSecondary">
               Creating your wallet…
             </Text>
@@ -159,16 +173,18 @@ const styles = StyleSheet.create({
   inline: { flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'stretch' },
   balanceRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
   balance: { flexShrink: 1 },
-  placeholder: { width: 168, height: 46, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  placeholder: { width: 168, height: 46, borderRadius: radius.md, backgroundColor: colors.borderStrong },
+  error: { alignSelf: 'stretch', gap: space.sm },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    minHeight: 36,
+    minHeight: HIT,
     paddingHorizontal: space.md,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceMuted,
   },
+  chipSkeleton: { width: 88, height: 14, borderRadius: radius.sm, backgroundColor: colors.borderStrong },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -183,7 +199,7 @@ const styles = StyleSheet.create({
     borderRadius: ACTION_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.surfaceMuted,
   },
   actionPrimary: { backgroundColor: colors.primary },
   pressed: { opacity: 0.7 },

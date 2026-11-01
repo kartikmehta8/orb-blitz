@@ -154,7 +154,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1, gap: space.xs },
   account: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  address: { flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'flex-start' },
+  address: { flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'flex-start', minHeight: HIT },
   pressed: { opacity: 0.6 },
   group: { paddingVertical: space.xs },
   signOut: {

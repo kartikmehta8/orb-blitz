@@ -3,20 +3,20 @@
  * (all): payments sent from the app, newest first, with the in-flight payment
  * (if any) on top. Tapping a row opens the transaction on the explorer.
  */
-import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import { txUrl } from '../config';
 import { shortAddress } from '../intent';
 import type { PendingStatus } from '../pendingTx';
 import type { ActivityTx } from '../storage';
-import { colors, space } from '../theme';
+import { colors, radius, space } from '../theme';
 import { monValue, timeAgo } from './format';
-import { Button, Card, IconTile, ListRow, Pill, Text, type Tone } from './ui';
+import { Button, Card, ListRow, Pill, Text, type Tone } from './ui';
 
 type RowStatus = ActivityTx['status'] | 'pending' | 'unknown';
 type Row = Omit<ActivityTx, 'status'> & { status: RowStatus };
 
-const STATUS: Record<RowStatus, { verb: string; label: string; tone: Extract<Tone, 'primary' | 'warning' | 'danger' | 'neutral'> }> = {
-  confirmed: { verb: 'Sent to', label: 'Confirmed', tone: 'primary' },
+const STATUS: Record<RowStatus, { verb: string; label: string; tone: Extract<Tone, 'warning' | 'danger' | 'neutral'> }> = {
+  confirmed: { verb: 'Sent to', label: 'Confirmed', tone: 'neutral' },
   pending: { verb: 'Sending to', label: 'Pending', tone: 'warning' },
   unknown: { verb: 'Payment to', label: 'Unconfirmed', tone: 'neutral' },
   failed: { verb: 'Payment to', label: 'Failed', tone: 'danger' },
@@ -72,31 +72,43 @@ function ActivityRow({ row, divider }: { row: Row; divider: boolean }) {
  * @param props.pending Pending-slot status, shown as the top row when in flight.
  * @param props.limit Show at most this many rows (default all).
  * @param props.emptyAction Optional button under the empty state.
- * @returns A card of rows, a loading card or an empty state.
+ * @param props.error The read threw. Never rendered as the empty state.
+ * @param props.onRetry Loads the list again.
+ * @returns A card of rows, a skeleton, an error, or an empty state.
  */
 export function ActivityList({
   items,
   pending,
   limit,
   emptyAction,
+  error,
+  onRetry,
 }: {
   items: ActivityTx[] | null;
   pending: PendingStatus;
   limit?: number;
   emptyAction?: { label: string; onPress: () => void };
+  error?: boolean;
+  onRetry?: () => void;
 }) {
   const rows = items ? toRows(items, pending).slice(0, limit) : null;
-  if (!rows) {
+  if (error && (!rows || rows.length === 0)) {
     return (
       <Card style={styles.empty}>
-        <ActivityIndicator color={colors.primary} />
+        <Text variant="headline" align="center">
+          Couldn’t load payments
+        </Text>
+        <Text variant="callout" color="textSecondary" align="center">
+          Payments on this phone didn’t load. Nothing was sent.
+        </Text>
+        {onRetry ? <Button icon="refresh-cw" label="Retry" onPress={onRetry} style={styles.emptyAction} /> : null}
       </Card>
     );
   }
+  if (!rows) return <ActivitySkeleton />;
   if (rows.length === 0) {
     return (
       <Card style={styles.empty}>
-        <IconTile icon="send" tone="primary" size={48} />
         <Text variant="headline" align="center">
           No payments yet
         </Text>
@@ -111,8 +123,37 @@ export function ActivityList({
   }
   return (
     <Card style={styles.list}>
+      {error && onRetry ? (
+        <View style={styles.refreshError} accessibilityRole="alert">
+          <Text variant="caption" color="danger" style={styles.flex}>
+            Couldn’t refresh. This is the last list that loaded.
+          </Text>
+          <Button size="sm" variant="secondary" label="Retry" onPress={onRetry} />
+        </View>
+      ) : null}
       {rows.map((row, i) => (
-        <ActivityRow key={row.hash} row={row} divider={i > 0} />
+        <ActivityRow key={row.hash} row={row} divider={i > 0 || !!error} />
+      ))}
+    </Card>
+  );
+}
+
+/**
+ * Three quiet rows in the shape of the list, with no spinner and no shimmer.
+ * @returns The loading card.
+ */
+function ActivitySkeleton() {
+  return (
+    <Card style={styles.list} accessibilityLabel="Loading payments">
+      {[0, 1, 2].map((row) => (
+        <View key={row} style={styles.skelRow}>
+          <View style={styles.skelIcon} />
+          <View style={styles.skelText}>
+            <View style={styles.skelLine} />
+            <View style={[styles.skelLine, styles.skelShort]} />
+          </View>
+          <View style={styles.skelAmount} />
+        </View>
       ))}
     </Card>
   );
@@ -120,7 +161,15 @@ export function ActivityList({
 
 const styles = StyleSheet.create({
   list: { paddingVertical: space.xs },
+  flex: { flex: 1 },
   trailing: { alignItems: 'flex-end', gap: space.xs },
   empty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xxl, paddingHorizontal: space.xxl },
-  emptyAction: { marginTop: space.sm },
+  emptyAction: { marginTop: space.sm, alignSelf: 'stretch' },
+  refreshError: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm },
+  skelRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  skelIcon: { width: 22, height: 22, borderRadius: radius.sm, backgroundColor: colors.borderStrong },
+  skelText: { flex: 1, gap: space.sm },
+  skelLine: { height: 12, borderRadius: radius.sm, backgroundColor: colors.borderStrong },
+  skelShort: { width: '46%' },
+  skelAmount: { width: 72, height: 14, borderRadius: radius.sm, backgroundColor: colors.borderStrong },
 });

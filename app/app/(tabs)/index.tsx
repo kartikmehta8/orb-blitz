@@ -13,6 +13,8 @@ import { BrandMark } from '../../src/components/BrandMark';
 import { NetworkPill } from '../../src/components/NetworkPill';
 import { Screen } from '../../src/components/Screen';
 import { SectionHeader, Text } from '../../src/components/ui';
+import { useSafeRead } from '../../src/components/useSafeRead';
+import { getActivity } from '../../src/storage';
 import { HIT, space } from '../../src/theme';
 import { useWalletData } from '../../src/walletData';
 
@@ -25,7 +27,8 @@ const AVATAR = 36;
  * @returns The scrollable wallet overview.
  */
 export default function WalletScreen() {
-  const { address, email, balance, balanceError, pending, recheckPending, activity, refresh } = useWalletData();
+  const { address, email, balance, balanceError, pending, recheckPending, refresh } = useWalletData();
+  const activity = useSafeRead(getActivity, pending.kind);
 
   const header = (
     <View style={styles.header}>
@@ -47,14 +50,25 @@ export default function WalletScreen() {
   );
 
   return (
-    <Screen header={header} onRefresh={refresh}>
+    <Screen
+      header={header}
+      onRefresh={async () => {
+        await Promise.allSettled([refresh(), activity.retry()]);
+      }}
+    >
       <View style={styles.top}>
-        <BalanceCard address={address} balance={balance} balanceError={balanceError} />
+        <BalanceCard address={address} balance={balance} balanceError={balanceError} onRetry={() => void refresh()} />
         <PendingBanner status={pending} onRecheck={recheckPending} />
       </View>
       <View>
         <SectionHeader title="Recent activity" action={{ label: 'See all', onPress: () => router.navigate('/activity') }} />
-        <ActivityList items={activity} pending={pending} limit={RECENT} />
+        <ActivityList
+          items={activity.value}
+          pending={pending}
+          limit={RECENT}
+          error={activity.error}
+          onRetry={() => void activity.retry()}
+        />
       </View>
     </Screen>
   );

@@ -9,10 +9,9 @@ import { OemTip, PermissionsCard } from '../../src/components/PermissionsCard';
 import { Screen } from '../../src/components/Screen';
 import { Card, SectionHeader, Text } from '../../src/components/ui';
 import { usePermissions } from '../../src/permissions';
-import { colors, radius, space } from '../../src/theme';
+import { space } from '../../src/theme';
 
 const STEPS = ['Open any app with a payment message', 'Tap the orb', 'Review and confirm with your fingerprint'];
-const STEP_DOT = 28;
 
 /**
  * Orb screen.
@@ -29,11 +28,9 @@ export default function BubbleScreen() {
         <Card style={styles.steps}>
           {STEPS.map((step, i) => (
             <View key={step} style={styles.step} accessible accessibilityLabel={`Step ${i + 1}. ${step}`}>
-              <View style={styles.dot}>
-                <Text variant="captionStrong" color="primary">
-                  {i + 1}
-                </Text>
-              </View>
+              <Text variant="bodyStrong" color="textSecondary">
+                {i + 1}
+              </Text>
               <Text variant="bodyStrong" style={styles.flex}>
                 {step}
               </Text>
@@ -49,13 +46,5 @@ export default function BubbleScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   steps: { gap: space.lg },
-  step: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  dot: {
-    width: STEP_DOT,
-    height: STEP_DOT,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
-  },
+  step: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48 },
 });

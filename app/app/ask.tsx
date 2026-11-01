@@ -17,7 +17,6 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
-  Easing,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -35,9 +34,9 @@ import { ContextChip, type CapturedContext, type ContextState } from '../src/com
 import { IntentCard } from '../src/components/IntentCard';
 import { MessageBubble, NoticeRow, TypingIndicator } from '../src/components/MessageBubble';
 import { NetworkPill } from '../src/components/NetworkPill';
-import { SuggestionChip } from '../src/components/SuggestionChip';
+import { animateSheet, useReduceMotion } from '../src/components/motion';
+import { chipContent, isAmountOption, SuggestionChip } from '../src/components/SuggestionChip';
 import { Button, Text, type IconName } from '../src/components/ui';
-import { chipLabel } from '../src/fallbackParser';
 import { usePendingTx, useWallet } from '../src/hooks';
 import type { Intent } from '../src/intent';
 import { getLimitState } from '../src/limits';
@@ -46,7 +45,7 @@ import { colors, HIT, radius, shadow, space, type as typeScale } from '../src/th
 /** Same cap the screen reader applies; clipboard text is held to it too. */
 const MAX_CONTEXT_CHARS = 4000;
 const MAX_INPUT_CHARS = 500;
-/** Visual size of the header close button; `hitSlop` pads it to a 48-pt target. */
+/** Visible disc inside the 48pt close control. */
 const CLOSE = 36;
 
 const QUICK_ACTIONS: { label: string; icon: IconName }[] = [
@@ -126,6 +125,19 @@ function toChat(turns: Turn[]): ChatTurn[] {
 }
 
 /**
+ * Label for one chip, or null when that entry is missing, null, or blank.
+ * @param labels Parallel labels, when the clarification has any.
+ * @param index Option index.
+ * @returns The trimmed label, or null.
+ */
+function chipLabelAt(labels: (string | null)[] | undefined, index: number): string | null {
+  const value = labels?.[index];
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
  * Route component. Collapses the stack to this route so no opaque screen sits
  * under the sheet: on a warm start expo-router's linking dispatches a NAVIGATE
  * that pushes `ask` over `index`; on a cold start the state is already `[ask]`.
@@ -162,23 +174,24 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
   const progress = useRef(new Animated.Value(0)).current;
   const closing = useRef(false);
+  const reduceMotion = useReduceMotion();
 
-  useEffect(() => {
-    Animated.spring(progress, { toValue: 1, damping: 26, stiffness: 260, overshootClamping: true, useNativeDriver: true }).start();
-    return () => abortRef.current?.abort();
-  }, [progress]);
+  useEffect(() => animateSheet(progress, 1, reduceMotion), [progress, reduceMotion]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const dismiss = useCallback(() => {
     if (closing.current) return;
     closing.current = true;
     abortRef.current?.abort();
-    Animated.timing(progress, { toValue: 0, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
+    animateSheet(progress, 0, reduceMotion, () => {
       router.replace('/');
       tryNative(() => BubbleOverlay?.minimizeApp(), undefined);
     });
-  }, [progress]);
+  }, [progress, reduceMotion]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -254,6 +267,14 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
 
   const lastTurn = turns[turns.length - 1];
   const canSend = !!input.trim() && !busy;
+  const freeformId =
+    !busy && lastTurn?.kind === 'assistant' && lastTurn.clarification && lastTurn.clarification.options.length === 0
+      ? lastTurn.id
+      : null;
+
+  useEffect(() => {
+    if (freeformId) inputRef.current?.focus();
+  }, [freeformId]);
   // A review card is tall; give the sheet more room once one is on screen.
   const hasIntent = turns.some((t) => t.kind === 'assistant' && t.intents.length > 0);
 
@@ -316,7 +337,8 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
           {turns.map((turn) => {
             if (turn.kind === 'user') return <MessageBubble key={turn.id} role="user" text={turn.text} />;
             if (turn.kind === 'notice') return <NoticeRow key={turn.id} text={turn.text} tone={turn.tone} icon={turn.icon} />;
-            const showChips = turn === lastTurn && !busy && !!turn.clarification?.options.length;
+            const options = turn.clarification?.options ?? [];
+            const showChips = turn === lastTurn && !busy && options.length > 0;
             return (
               <View key={turn.id} style={styles.turn}>
                 {turn.text ? <MessageBubble role="assistant" text={turn.text} /> : null}
@@ -330,16 +352,34 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
                   />
                 ))}
                 {showChips ? (
-                  <View style={styles.chips}>
-                    {turn.clarification?.options.map((option) => (
-                      <SuggestionChip
-                        key={option}
-                        label={chipLabel(option)}
-                        mono={option.startsWith('0x')}
-                        accessibilityLabel={option}
-                        onPress={() => void send(option)}
-                      />
-                    ))}
+                  <View style={styles.follow}>
+                    <View style={styles.chips}>
+                      {options.map((option, index) => {
+                        const content = chipContent(option, chipLabelAt(turn.clarification?.labels, index));
+                        return (
+                          <SuggestionChip
+                            key={`${index}:${option}`}
+                            label={content.label}
+                            detail={content.detail}
+                            mono={content.mono}
+                            accessibilityLabel={content.accessibilityLabel}
+                            onPress={() => void send(option)}
+                          />
+                        );
+                      })}
+                    </View>
+                    {options.some(isAmountOption) ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Enter a different amount"
+                        onPress={() => inputRef.current?.focus()}
+                        style={({ pressed }) => [styles.amountLink, pressed && styles.amountLinkPressed]}
+                      >
+                        <Text variant="bodyStrong" color="primaryInk">
+                          Enter a different amount
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 ) : null}
               </View>
@@ -350,9 +390,10 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
 
         <View style={styles.composer}>
           <TextInput
+            ref={inputRef}
             value={input}
             onChangeText={setInput}
-            placeholder="Ask or say “pay this”"
+            placeholder={freeformId ? 'Type an amount or address' : 'Ask or say “pay this”'}
             placeholderTextColor={colors.textTertiary}
             maxLength={MAX_INPUT_CHARS}
             returnKeyType="send"
@@ -368,7 +409,7 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
             onPress={() => void send(input)}
             style={({ pressed }) => [styles.send, pressed && styles.sendPressed, !canSend && styles.sendDisabled]}
           >
-            <Feather name="arrow-up" size={20} color={colors.textInverse} />
+            <Feather name="arrow-up" size={20} color={canSend ? colors.textInverse : colors.textSecondary} />
           </Pressable>
         </View>
       </>
@@ -403,11 +444,12 @@ function AskSheet({ ctxId }: { ctxId: string | undefined }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close"
-              hitSlop={(HIT - CLOSE) / 2}
               onPress={dismiss}
               style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
             >
-              <Feather name="x" size={18} color={colors.textSecondary} />
+              <View style={styles.closeDisc}>
+                <Feather name="x" size={18} color={colors.textSecondary} />
+              </View>
             </Pressable>
           </View>
           {body}
@@ -445,7 +487,8 @@ const styles = StyleSheet.create({
     paddingBottom: space.md,
   },
   flex: { flex: 1 },
-  close: {
+  close: { width: HIT, height: HIT, alignItems: 'center', justifyContent: 'center' },
+  closeDisc: {
     width: CLOSE,
     height: CLOSE,
     borderRadius: radius.pill,
@@ -459,7 +502,10 @@ const styles = StyleSheet.create({
   quickScroll: { marginHorizontal: -space.xl, flexGrow: 0 },
   quick: { paddingHorizontal: space.xl, gap: space.sm },
   turn: { gap: space.md },
+  follow: { gap: space.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  amountLink: { minHeight: HIT, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: space.xs },
+  amountLinkPressed: { opacity: 0.6 },
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -487,7 +533,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendPressed: { backgroundColor: colors.primaryPressed },
-  sendDisabled: { backgroundColor: colors.primarySoftBorder },
+  sendDisabled: { backgroundColor: colors.surfaceMuted },
   gate: { alignItems: 'center', gap: space.lg, paddingHorizontal: space.xxl, paddingTop: space.xl, paddingBottom: space.xxl },
   gateText: { alignItems: 'center', gap: space.sm },
   gateButton: { alignSelf: 'stretch', marginTop: space.sm },

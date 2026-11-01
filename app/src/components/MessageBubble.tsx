@@ -8,6 +8,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { colors, radius, space } from '../theme';
 import { BrandMark } from './BrandMark';
+import { useReduceMotion } from './motion';
 import { Text, type IconName } from './ui';
 
 const AVATAR = 20;
@@ -63,14 +64,19 @@ export function MessageBubble({ role, text }: { role: 'user' | 'assistant'; text
  */
 export function TypingIndicator() {
   const phase = useRef(new Animated.Value(0)).current;
+  const reduce = useReduceMotion();
 
   useEffect(() => {
+    if (reduce) {
+      phase.setValue(0);
+      return;
+    }
     const loop = Animated.loop(
       Animated.timing(phase, { toValue: DOTS + 1, duration: DOT_STEP_MS * (DOTS + 1) * 2, easing: Easing.linear, useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();
-  }, [phase]);
+  }, [phase, reduce]);
 
   return (
     <AgentRow label="Agent is thinking">
@@ -84,8 +90,8 @@ export function TypingIndicator() {
               style={[
                 styles.dot,
                 {
-                  opacity: phase.interpolate({ ...range, outputRange: [0.35, 1, 0.35, 0.35] }),
-                  transform: [{ translateY: phase.interpolate({ ...range, outputRange: [0, -3, 0, 0] }) }],
+                  opacity: reduce ? 1 : phase.interpolate({ ...range, outputRange: [0.35, 1, 0.35, 0.35] }),
+                  transform: reduce ? undefined : [{ translateY: phase.interpolate({ ...range, outputRange: [0, -3, 0, 0] }) }],
                 },
               ]}
             />

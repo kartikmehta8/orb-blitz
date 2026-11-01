@@ -17,9 +17,10 @@ import {
   type PressableProps,
   type StyleProp,
   type TextProps as RNTextProps,
+  type ViewProps,
   type ViewStyle,
 } from 'react-native';
-import { colors, radius, shadow, space, type as typeScale, type ColorToken, type TypeVariant } from '../theme';
+import { colors, HIT, radius, shadow, space, type as typeScale, type ColorToken, type TypeVariant } from '../theme';
 
 export type IconName = ComponentProps<typeof Feather>['name'];
 
@@ -28,7 +29,7 @@ export type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger';
 
 const TONES: Record<Tone, { bg: string; fg: ColorToken }> = {
   neutral: { bg: colors.surfaceMuted, fg: 'textSecondary' },
-  primary: { bg: colors.primarySoft, fg: 'primary' },
+  primary: { bg: colors.primarySoft, fg: 'primaryInk' },
   success: { bg: colors.successSoft, fg: 'success' },
   warning: { bg: colors.warningSoft, fg: 'warning' },
   danger: { bg: colors.dangerSoft, fg: 'danger' },
@@ -60,7 +61,7 @@ type ButtonProps = Omit<PressableProps, 'style' | 'children'> & {
 const BUTTON_TONES: Record<ButtonVariant, { bg: string; pressed: string; fg: ColorToken; border?: string }> = {
   primary: { bg: colors.primary, pressed: colors.primaryPressed, fg: 'textInverse' },
   secondary: { bg: colors.surface, pressed: colors.surfaceMuted, fg: 'text', border: colors.borderStrong },
-  ghost: { bg: 'transparent', pressed: colors.primarySoft, fg: 'primary' },
+  ghost: { bg: 'transparent', pressed: colors.primarySoft, fg: 'primaryInk' },
 };
 
 /**
@@ -72,29 +73,33 @@ const BUTTON_TONES: Record<ButtonVariant, { bg: string; pressed: string; fg: Col
  */
 export function Button({ label, variant = 'primary', icon, loading, disabled, size = 'md', style, ...rest }: ButtonProps) {
   const tone = BUTTON_TONES[variant];
-  const inactive = disabled || loading;
+  const blocked = disabled || loading;
+  // Disabled is a solid muted control, not a faded one, so the label stays above 4.5:1.
+  const quiet = !!disabled && !loading;
+  const fg: ColorToken = quiet ? 'textSecondary' : tone.fg;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: !!inactive, busy: !!loading }}
-      disabled={inactive}
-      hitSlop={size === 'sm' ? 8 : 0}
+      accessibilityState={{ disabled: !!blocked, busy: !!loading }}
+      disabled={blocked}
       style={({ pressed }) => [
         styles.button,
         size === 'sm' && styles.buttonSm,
-        { backgroundColor: pressed ? tone.pressed : tone.bg, borderColor: tone.border ?? 'transparent' },
-        inactive && styles.inactive,
+        {
+          backgroundColor: quiet ? colors.surfaceMuted : pressed ? tone.pressed : tone.bg,
+          borderColor: quiet ? colors.borderStrong : (tone.border ?? 'transparent'),
+        },
         style,
       ]}
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={colors[tone.fg]} size="small" />
+        <ActivityIndicator color={colors[fg]} size="small" />
       ) : (
         <>
-          {icon && <Feather name={icon} size={size === 'sm' ? 14 : 16} color={colors[tone.fg]} />}
-          <Text variant="button" color={tone.fg} style={size === 'sm' && styles.buttonSmText}>
+          {icon && <Feather name={icon} size={16} color={colors[fg]} />}
+          <Text variant="button" color={fg} style={[styles.buttonLabel, size === 'sm' && styles.buttonSmText]}>
             {label}
           </Text>
         </>
@@ -109,8 +114,16 @@ export function Button({ label, variant = 'primary', icon, loading, disabled, si
  * @param props.style Extra container style.
  * @returns A card view.
  */
-export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+export function Card({
+  children,
+  style,
+  ...rest
+}: { children: ReactNode; style?: StyleProp<ViewStyle> } & Pick<ViewProps, 'accessibilityRole' | 'accessibilityLabel'>) {
+  return (
+    <View {...rest} style={[styles.card, style]}>
+      {children}
+    </View>
+  );
 }
 
 /**
@@ -146,17 +159,17 @@ export function StatusDot({ tone }: { tone: Extract<Tone, 'success' | 'warning' 
 }
 
 /**
- * Icon inside a tinted rounded square: the leading visual of list rows.
+ * Outline icon for a row. No tinted tile: color is reserved for status.
  * @param props.icon Feather icon name.
- * @param props.tone Tint (default `primary`).
- * @param props.size Edge length in pt (default 40).
- * @returns The tile.
+ * @param props.tone Icon color (default neutral).
+ * @param props.size Slot edge in pt (default 24). The glyph stays smaller than the slot.
+ * @returns The icon.
  */
-export function IconTile({ icon, tone = 'primary', size = 40 }: { icon: IconName; tone?: Tone; size?: number }) {
+export function IconTile({ icon, tone = 'neutral', size = 24 }: { icon: IconName; tone?: Tone; size?: number }) {
   const t = TONES[tone];
   return (
-    <View style={[styles.tile, { width: size, height: size, borderRadius: size * 0.3, backgroundColor: t.bg }]}>
-      <Feather name={icon} size={Math.round(size * 0.45)} color={colors[t.fg]} />
+    <View style={[styles.tile, { width: size, height: size }]}>
+      <Feather name={icon} size={Math.min(22, Math.round(size * 0.7))} color={colors[t.fg]} />
     </View>
   );
 }
@@ -175,7 +188,7 @@ type ListRowProps = {
 };
 
 /**
- * Settings-style row: icon tile, title, one-line subtitle, trailing slot.
+ * Settings-style row: icon tile, title, subtitle, trailing slot.
  * @returns A static or pressable row with a 56-pt minimum height.
  */
 export function ListRow({ title, subtitle, icon, tone, trailing, onPress, divider, accessibilityLabel }: ListRowProps) {
@@ -183,9 +196,7 @@ export function ListRow({ title, subtitle, icon, tone, trailing, onPress, divide
     <>
       {icon && <IconTile icon={icon} tone={tone} />}
       <View style={styles.rowText}>
-        <Text variant="bodyStrong" numberOfLines={1}>
-          {title}
-        </Text>
+        <Text variant="bodyStrong">{title}</Text>
         {subtitle ? (
           <Text variant="caption" color="textSecondary" numberOfLines={2}>
             {subtitle}
@@ -234,8 +245,8 @@ export function SectionHeader({
         {title}
       </Text>
       {action ? (
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={action.onPress}>
-          <Text variant="captionStrong" color="primary">
+        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.sectionAction}>
+          <Text variant="bodyStrong" color="primaryInk">
             {action.label}
           </Text>
         </Pressable>
@@ -299,6 +310,7 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 52,
     paddingHorizontal: space.xl,
+    paddingVertical: space.sm,
     borderRadius: radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -306,12 +318,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.sm,
   },
-  buttonSm: { minHeight: 36, paddingHorizontal: space.lg, gap: space.xs + 2 },
-  buttonSmText: { fontSize: 14, lineHeight: 18 },
-  inactive: { opacity: 0.4 },
+  buttonSm: { minHeight: HIT, paddingHorizontal: space.lg },
+  buttonLabel: { flexShrink: 1, textAlign: 'center' },
+  buttonSmText: { fontSize: 15, lineHeight: 20 },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     padding: space.lg,
@@ -337,9 +349,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: HIT,
     paddingHorizontal: space.xs,
-    marginBottom: space.sm,
   },
+  sectionAction: { minHeight: HIT, justifyContent: 'center', paddingHorizontal: space.sm },
   track: { height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3 },
 });

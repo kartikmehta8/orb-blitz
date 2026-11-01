@@ -19,7 +19,7 @@ export function NetworkPill({ label = 'Testnet' }: { label?: string }) {
   return (
     <View style={styles.pill} accessible accessibilityLabel={label === 'Testnet' ? 'Monad Testnet' : label}>
       <MonadMark size={MARK} color={colors.primary} />
-      <Text variant="captionStrong" color="primary">
+      <Text variant="captionStrong" color="primaryInk">
         {label}
       </Text>
     </View>

@@ -17,16 +17,16 @@ import { intentCost } from '../validateIntent';
 import { AddressText } from './AddressText';
 import { HoldButton } from './HoldButton';
 import { PaymentStatus } from './PaymentStatus';
-import { Button, Card, IconTile, Text, type IconName } from './ui';
+import { Button, Card, Text, type IconName } from './ui';
 
 /** Plain-language copy for each warning. */
 const WARNING_COPY: Record<IntentWarning, string> = {
-  NEW_RECIPIENT: "You haven't paid this address before. Check it matches.",
-  RECIPIENT_IS_CONTRACT: 'This address is a contract. Funds may not be recoverable.',
-  SELF_TRANSFER: 'This is your own address.',
-  AMOUNT_NOT_IN_CONTEXT: "This amount doesn't appear on your screen or in your message.",
-  PARSED_WITHOUT_AI: 'Read by the basic parser while the agent is offline. Double-check every detail.',
-  CLOSE_TO_DAILY_LIMIT: "This uses most of today's spending limit.",
+  NEW_RECIPIENT: 'First payment to this address. Check it matches what you saw.',
+  RECIPIENT_IS_CONTRACT: 'This address is a contract. You may not be able to get the money back.',
+  SELF_TRANSFER: 'This payment goes to your own wallet.',
+  AMOUNT_NOT_IN_CONTEXT: 'This amount was not on the screen or in your message.',
+  PARSED_WITHOUT_AI: 'The agent was offline, so a basic parser read this. Check every detail before you send.',
+  CLOSE_TO_DAILY_LIMIT: "This payment uses most of today's limit.",
 };
 
 /**
@@ -99,23 +99,23 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
         {actionable ? <ExpiryCountdown expiresAt={intent.expiresAt} /> : null}
       </View>
 
-      <View style={styles.amount} accessible accessibilityLabel={`Send ${intent.amountDisplay}`}>
-        <Text variant="display">{amount}</Text>
-        <Text variant="headline" color="textSecondary" style={styles.unit}>
-          MON
-        </Text>
-      </View>
-
-      <View style={styles.recipient}>
-        <IconTile icon="user" size={36} />
-        <View style={styles.recipientText}>
-          <Text variant="overline" color="textTertiary">
+      <View style={styles.hero}>
+        <View style={styles.amount} accessible accessibilityLabel={`Send ${intent.amountDisplay}`}>
+          <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={styles.amountFigure}>
+            {amount}
+          </Text>
+          <Text variant="headline" color="textSecondary">
+            MON
+          </Text>
+        </View>
+        <View style={styles.recipient}>
+          <Text variant="caption" color="textSecondary">
             To
           </Text>
           <AddressText address={intent.to} />
           <View style={styles.inline}>
-            <Feather name={source.icon} size={12} color={colors.textSecondary} />
-            <Text variant="caption" color="textSecondary">
+            <Feather name={source.icon} size={14} color={colors.textSecondary} />
+            <Text variant="caption" color="textSecondary" style={styles.flex}>
               {source.text}
             </Text>
           </View>
@@ -166,7 +166,17 @@ export function IntentCard({ intent, wallet, address, onSettled }: Props) {
             </Text>
           ) : null}
           {authMode === 'hold' ? (
-            <HoldButton disabled={confirmBlocked || preparing} onComplete={() => void exec.confirm()} />
+            <>
+              <View style={styles.holdNote}>
+                <Text variant="callout">
+                  Orb can’t use a fingerprint or PIN for this payment. Press and hold until the button fills to send.
+                </Text>
+                <Text variant="caption" color="textSecondary">
+                  Add a fingerprint or device PIN in Settings to confirm with one touch next time.
+                </Text>
+              </View>
+              <HoldButton disabled={confirmBlocked || preparing} onComplete={() => void exec.confirm()} />
+            </>
           ) : (
             <Button
               label="Confirm"
@@ -206,7 +216,7 @@ function DetailRow({ label, value, strong }: { label: string; value: string; str
       <Text variant="overline" color="textTertiary">
         {label}
       </Text>
-      <Text variant={strong ? 'amount' : 'callout'} style={styles.tabular}>
+      <Text variant={strong ? 'amount' : 'callout'} style={[styles.tabular, styles.value]}>
         {value}
       </Text>
     </View>
@@ -262,27 +272,22 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: number }) {
 }
 
 const styles = StyleSheet.create({
-  card: { gap: space.lg, padding: space.xl, borderRadius: radius.xl },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  card: { gap: space.lg, padding: space.xl },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 24 },
   flex: { flex: 1 },
   tabular: { fontVariant: ['tabular-nums'] },
-  amount: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: space.sm, paddingVertical: space.xs },
-  unit: { marginBottom: space.xs },
-  recipient: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.md,
-    padding: space.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceMuted,
-  },
-  recipientText: { flex: 1, gap: space.xs },
+  value: { flexShrink: 1, textAlign: 'right' },
+  hero: { gap: space.md },
+  amount: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
+  amountFigure: { flexShrink: 1 },
+  recipient: { gap: space.xs },
   inline: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 44,
+    gap: space.md,
+    minHeight: 48,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
@@ -293,9 +298,8 @@ const styles = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.md,
     backgroundColor: colors.warningSoft,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.warningBorder,
   },
+  holdNote: { gap: space.xs },
   rowIcon: { marginTop: 1 },
   reason: { gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   reasonHead: { flexDirection: 'row', gap: space.sm },

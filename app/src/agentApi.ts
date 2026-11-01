@@ -51,7 +51,15 @@ type AgentRequest = {
   limits: { perTxMon: string; dailyRemainingMon: string };
 };
 
-export type Clarification = { question: string; options: string[] };
+export type Clarification = {
+  question: string;
+  options: string[];
+  /**
+   * Parallel to `options`. Each entry is a name or null.
+   * Omitted when every entry would be null, and ignored when the length does not match.
+   */
+  labels?: (string | null)[];
+};
 
 /** The only intent fields the app reads from the server. */
 type ProposedIntent = Pick<Intent, 'id' | 'to' | 'amountWei'>;
@@ -82,6 +90,24 @@ const isClarification = (v: unknown): v is Clarification =>
   isRecord(v) && typeof v.question === 'string' && isStringArray(v.options);
 
 /**
+ * Keeps `labels` only when it lines up 1:1 with `options` and is not all null.
+ * A bad label list is dropped; the options still stand.
+ * @param raw The `labels` field from the response, unchecked.
+ * @param optionCount Length of the uncut options array.
+ * @returns Labels, or undefined.
+ */
+function clarificationLabels(raw: unknown, optionCount: number): (string | null)[] | undefined {
+  if (!Array.isArray(raw) || raw.length !== optionCount) return undefined;
+  const labels: (string | null)[] = [];
+  for (const entry of raw) {
+    if (entry === null) labels.push(null);
+    else if (typeof entry === 'string') labels.push(entry);
+    else return undefined;
+  }
+  return labels.some((label) => label !== null) ? labels : undefined;
+}
+
+/**
  * Validates the response body (only the fields the app uses).
  * @param v Parsed JSON.
  * @param requestId The ID we sent; the server must echo it.
@@ -92,10 +118,16 @@ function parseResponse(v: unknown, requestId: string): AgentResponse | null {
   if (!Array.isArray(v.intents) || !v.intents.every(isProposal)) return null;
   const clarification = v.clarification ?? null;
   if (clarification !== null && !isClarification(clarification)) return null;
+  const options = clarification ? clarification.options.slice(0, 4) : [];
+  const labels = clarification
+    ? clarificationLabels(clarification.labels, clarification.options.length)?.slice(0, options.length)
+    : undefined;
   return {
     reply: v.reply,
     intents: v.intents.slice(0, MAX_INTENTS_PER_REQUEST),
-    clarification: clarification && { question: clarification.question, options: clarification.options.slice(0, 4) },
+    clarification: clarification
+      ? { question: clarification.question, options, ...(labels?.some((label) => label !== null) ? { labels } : {}) }
+      : null,
   };
 }
 
@@ -217,7 +249,13 @@ export async function planTurn(input: TurnInput): Promise<TurnOutcome> {
   };
   const parsed = parseFallback({ contextText: context?.text ?? null, userTexts, perTxMon });
   if (parsed.kind === 'clarify') {
-    return { notice, reply: '', intents: [], clarification: { question: parsed.question, options: parsed.options } };
+    const labels = parsed.labels?.some((label) => label !== null) ? parsed.labels : undefined;
+    return {
+      notice,
+      reply: '',
+      intents: [],
+      clarification: { question: parsed.question, options: parsed.options, ...(labels ? { labels } : {}) },
+    };
   }
   const result = await prepare(randomUUID(), parsed.to, parsed.amountMon, 'fallback');
   return isTransferError(result)

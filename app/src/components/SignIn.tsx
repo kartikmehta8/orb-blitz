@@ -10,7 +10,7 @@ import { useLoginWithEmail } from '@privy-io/expo';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, BackHandler, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeInLeft, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInLeft, FadeInRight, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, HIT, radius, space, type as typeScale } from '../theme';
 import { BrandMark, MonadMark } from './BrandMark';
@@ -329,7 +329,9 @@ export function SignIn() {
     );
   }
 
-  const entering = (direction === 0 ? FadeIn : direction > 0 ? FadeInRight : FadeInLeft).duration(TRANSITION_MS);
+  const entering = (direction === 0 ? FadeIn : direction > 0 ? FadeInRight : FadeInLeft)
+    .duration(TRANSITION_MS)
+    .reduceMotion(ReduceMotion.System);
 
   return (
     <View style={styles.screen}>

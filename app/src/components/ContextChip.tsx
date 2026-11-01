@@ -52,7 +52,7 @@ export function ContextChip({ state, excluded, onExcludedChange, onUseClipboard,
     return (
       <View style={[styles.box, styles.muted]}>
         <View style={styles.head}>
-          <IconTile icon="eye-off" tone="neutral" size={36} />
+          <IconTile icon="eye-off" tone="neutral" size={24} />
           <View style={styles.flex}>
             <Text variant="captionStrong">{"Couldn't read the screen"}</Text>
             <Text variant="caption" color="textSecondary">
@@ -84,7 +84,7 @@ export function ContextChip({ state, excluded, onExcludedChange, onUseClipboard,
         onPress={() => setOpen((o) => !o)}
         style={({ pressed }) => [styles.head, pressed && styles.pressed]}
       >
-        <IconTile icon={ctx.source === 'clipboard' ? 'clipboard' : 'smartphone'} tone={excluded ? 'neutral' : 'primary'} size={36} />
+        <IconTile icon={ctx.source === 'clipboard' ? 'clipboard' : 'smartphone'} tone={excluded ? 'neutral' : 'primary'} size={24} />
         <View style={styles.flex}>
           <Text variant="captionStrong" color={excluded ? 'textSecondary' : 'text'} numberOfLines={1}>
             {excluded ? `Not using ${ctx.appLabel}` : `Reading ${ctx.appLabel}`}
@@ -121,12 +121,12 @@ const styles = StyleSheet.create({
   box: { borderRadius: radius.lg, borderWidth: 1, padding: space.sm + 2, gap: space.sm },
   active: { backgroundColor: colors.surface, borderColor: colors.primarySoftBorder },
   muted: { backgroundColor: colors.surfaceMuted, borderColor: colors.border },
-  head: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: HIT - 8 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: HIT },
   pressed: { opacity: 0.6 },
   flex: { flex: 1, gap: space.xxs },
   meta: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   metaText: { fontSize: 12, lineHeight: 16 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: space.md, flexWrap: 'wrap', paddingLeft: 36 + space.md },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: space.md, flexWrap: 'wrap' },
   raw: {
     maxHeight: 140,
     backgroundColor: colors.surfaceMuted,

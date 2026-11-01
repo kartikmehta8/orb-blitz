@@ -181,7 +181,7 @@ export function PermissionsCard({ status, refresh }: { status: PermissionStatus 
                 <ListRow
                   key={row.key}
                   icon={row.icon}
-                  tone={granted ? 'primary' : row.required ? 'danger' : 'warning'}
+                  tone={granted ? 'neutral' : row.required ? 'danger' : 'warning'}
                   title={row.title}
                   subtitle={granted ? row.granted : row.missing}
                   divider={allSet || i > 0}
@@ -212,10 +212,10 @@ export function PermissionsCard({ status, refresh }: { status: PermissionStatus 
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Open App info"
-                hitSlop={space.md}
                 onPress={() => void Linking.openSettings()}
+                style={styles.link}
               >
-                <Text variant="button" color="primary">
+                <Text variant="button" color="primaryInk">
                   Open App info
                 </Text>
               </Pressable>
@@ -236,4 +236,5 @@ const styles = StyleSheet.create({
   hint: { borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   hintToggle: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: HIT, paddingHorizontal: space.md },
   hintBody: { gap: space.sm, paddingHorizontal: space.md, paddingBottom: space.md, alignItems: 'flex-start' },
+  link: { minHeight: HIT, justifyContent: 'center' },
 });

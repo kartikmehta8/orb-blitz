@@ -3,10 +3,10 @@
  * edited in a bottom sheet with presets, plus today's spend.
  */
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { LIMIT_DEFAULTS } from '../config';
-import { limitError, saveLimits, type LimitState, type Limits } from '../limits';
+import { getLimitState, limitError, saveLimits, type LimitState, type Limits } from '../limits';
 import { colors, fonts, HIT, radius, space, type as typeScale } from '../theme';
 import { monValue } from './format';
 import { Sheet } from './Sheet';
@@ -121,25 +121,76 @@ export function LimitsCard({ state, onSaved }: { state: LimitState | null; onSav
   const [field, setField] = useState<Field>('perTxMon');
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState(0);
+  const [local, setLocal] = useState<LimitState | null>(null);
+  const [error, setError] = useState(false);
+  const loadId = useRef(0);
+  const shown = state ?? local;
   const edit = (f: Field) => {
     setField(f);
     setSession((n) => n + 1);
     setOpen(true);
   };
 
-  if (!state) {
+  const reload = async () => {
+    const call = ++loadId.current;
+    try {
+      const next = await getLimitState();
+      if (call !== loadId.current) return;
+      setLocal(next);
+      setError(false);
+    } catch {
+      if (call === loadId.current) setError(true);
+    }
+  };
+
+  useEffect(() => {
+    if (state) {
+      setError(false);
+      return;
+    }
+    const call = ++loadId.current;
+    getLimitState().then(
+      (next) => {
+        if (call !== loadId.current) return;
+        setLocal(next);
+        setError(false);
+      },
+      () => {
+        if (call === loadId.current) setError(true);
+      },
+    );
+    return () => {
+      loadId.current += 1;
+    };
+  }, [state]);
+
+  if (!shown) {
     return (
       <View>
         <SectionHeader title="Spending limits" />
-        <Card style={styles.loading}>
-          <ActivityIndicator color={colors.primary} />
-        </Card>
+        {error ? (
+          <Card style={styles.loading} accessibilityRole="alert">
+            <Text variant="headline" align="center">
+              Couldn’t load limits
+            </Text>
+            <Text variant="callout" color="textSecondary" align="center">
+              Spending limits on this phone didn’t load. Your caps were not changed.
+            </Text>
+            <Button icon="refresh-cw" label="Retry" onPress={() => void reload()} />
+          </Card>
+        ) : (
+          <Card style={styles.loading} accessibilityLabel="Loading spending limits">
+            <View style={styles.skelLine} />
+            <View style={styles.skelLine} />
+            <View style={[styles.skelLine, styles.skelShort]} />
+          </Card>
+        )}
       </View>
     );
   }
 
-  const used = state.dailyWei > 0n ? Number((state.spentWei * 1000n) / state.dailyWei) / 1000 : 0;
-  const spentLabel = `${monValue(state.spentWei)} of ${monValue(state.dailyWei)} MON`;
+  const used = shown.dailyWei > 0n ? Number((shown.spentWei * 1000n) / shown.dailyWei) / 1000 : 0;
+  const spentLabel = `${monValue(shown.spentWei)} of ${monValue(shown.dailyWei)} MON`;
 
   return (
     <View>
@@ -153,14 +204,14 @@ export function LimitsCard({ state, onSaved }: { state: LimitState | null; onSav
             title={FIELDS[field].title}
             subtitle={FIELDS[field].subtitle}
             divider={i > 0}
-            accessibilityLabel={`${FIELDS[field].title}, ${state.limits[field]} MON. Edit`}
+            accessibilityLabel={`${FIELDS[field].title}, ${shown.limits[field]} MON. Edit`}
             onPress={() => edit(field)}
             trailing={
               <View style={styles.value}>
                 <Text variant="mono" style={styles.valueText}>
-                  {state.limits[field]} MON
+                  {shown.limits[field]} MON
                 </Text>
-                <Text variant="overline" color="primary">
+                <Text variant="bodyStrong" color="primaryInk">
                   Edit
                 </Text>
               </View>
@@ -183,10 +234,11 @@ export function LimitsCard({ state, onSaved }: { state: LimitState | null; onSav
         key={session}
         field={field}
         visible={open}
-        limits={state.limits}
+        limits={shown.limits}
         onClose={() => setOpen(false)}
         onSaved={() => {
           setOpen(false);
+          void reload();
           onSaved();
         }}
       />
@@ -197,7 +249,9 @@ export function LimitsCard({ state, onSaved }: { state: LimitState | null; onSav
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   tabular: { fontVariant: ['tabular-nums'] },
-  loading: { alignItems: 'center', paddingVertical: space.xxl },
+  loading: { alignItems: 'stretch', gap: space.md, paddingVertical: space.xl },
+  skelLine: { height: 18, borderRadius: radius.sm, backgroundColor: colors.borderStrong },
+  skelShort: { width: '55%' },
   card: { paddingVertical: space.xs },
   value: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   valueText: { fontFamily: fonts.monoMedium },

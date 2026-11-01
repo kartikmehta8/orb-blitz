@@ -2,11 +2,12 @@
  * @file Inline status banner with optional actions, plus the pending-payment
  * banner shared by the Wallet tab and the Ask sheet. Tones map to the semantic palette only.
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
+import { publicClient } from '../chain';
 import { txUrl } from '../config';
 import { formatMon, shortAddress } from '../intent';
-import type { PendingStatus } from '../pendingTx';
+import { checkPending, type PendingStatus } from '../pendingTx';
 import { colors, radius, space } from '../theme';
 import { Button, IconTile, Text, type IconName } from './ui';
 
@@ -66,15 +67,41 @@ function Banner({
  * @returns A banner, or null.
  */
 export function PendingBanner({ status, onRecheck }: { status: PendingStatus; onRecheck: () => void }) {
+  const [checkError, setCheckError] = useState(false);
+
+  // Call the chain check here. On failure, do not call `onRecheck`: that path
+  // treats a throw as "no pending payment" and would remove this banner.
+  const recheck = () => {
+    void (async () => {
+      try {
+        await checkPending(publicClient);
+        setCheckError(false);
+        onRecheck();
+      } catch {
+        setCheckError(true);
+      }
+    })();
+  };
+
   if (status.kind === 'pending') {
     return (
       <Banner
-        tone="warning"
-        icon="clock"
-        title={`Payment pending · ${formatMon(BigInt(status.tx.amountWei), 18)}`}
-        body={`To ${shortAddress(status.tx.to)}. Waiting for Monad testnet.`}
+        tone={checkError ? 'danger' : 'warning'}
+        icon={checkError ? 'alert-circle' : 'clock'}
+        title={checkError ? 'Couldn’t check this payment' : `Payment pending · ${formatMon(BigInt(status.tx.amountWei), 18)}`}
+        body={
+          checkError
+            ? 'It is still pending. Nothing was changed.'
+            : `To ${shortAddress(status.tx.to)}. Waiting for Monad testnet.`
+        }
       >
-        <Button size="sm" variant="secondary" label="Check" accessibilityLabel="Check payment again" onPress={onRecheck} />
+        <Button
+          size="sm"
+          variant="secondary"
+          label={checkError ? 'Retry' : 'Check'}
+          accessibilityLabel={checkError ? 'Retry checking the payment' : 'Check payment again'}
+          onPress={recheck}
+        />
       </Banner>
     );
   }

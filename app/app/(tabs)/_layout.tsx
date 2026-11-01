@@ -74,5 +74,5 @@ const styles = StyleSheet.create({
     elevation: 0,
     shadowOpacity: 0,
   },
-  label: { fontFamily: fonts.medium, fontSize: 11 },
+  label: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
 });

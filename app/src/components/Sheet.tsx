@@ -5,9 +5,10 @@
  */
 import { Feather } from '@expo/vector-icons';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, HIT, radius, shadow, space } from '../theme';
+import { animateSheet, useReduceMotion } from './motion';
 import { Text } from './ui';
 
 const CLOSE_SIZE = 36;
@@ -35,17 +36,15 @@ export function Sheet({
   const { height } = useWindowDimensions();
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     if (visible) {
       setMounted(true);
-      Animated.spring(progress, { toValue: 1, damping: 26, stiffness: 260, overshootClamping: true, useNativeDriver: true }).start();
-    } else {
-      Animated.timing(progress, { toValue: 0, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(
-        ({ finished }) => finished && setMounted(false),
-      );
+      return animateSheet(progress, 1, reduceMotion);
     }
-  }, [visible, progress]);
+    return animateSheet(progress, 0, reduceMotion, () => setMounted(false));
+  }, [visible, progress, reduceMotion]);
 
   return (
     <Modal visible={mounted} transparent animationType="none" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
@@ -72,10 +71,11 @@ export function Sheet({
               accessibilityRole="button"
               accessibilityLabel="Close"
               onPress={onClose}
-              hitSlop={(HIT - CLOSE_SIZE) / 2}
               style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
             >
-              <Feather name="x" size={18} color={colors.textSecondary} />
+              <View style={styles.closeDisc}>
+                <Feather name="x" size={18} color={colors.textSecondary} />
+              </View>
             </Pressable>
           </View>
           {children}
@@ -100,7 +100,8 @@ const styles = StyleSheet.create({
   handle: { alignSelf: 'center', width: 36, height: 4, borderRadius: radius.pill, backgroundColor: colors.borderStrong },
   header: { flexDirection: 'row', alignItems: 'center', minHeight: HIT, marginTop: -space.sm },
   title: { flex: 1 },
-  close: {
+  close: { width: HIT, height: HIT, alignItems: 'center', justifyContent: 'center' },
+  closeDisc: {
     width: CLOSE_SIZE,
     height: CLOSE_SIZE,
     borderRadius: radius.pill,

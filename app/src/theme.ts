@@ -21,25 +21,37 @@ export const colors = {
   /** Monad ink: primary text. */
   text: '#0E091C',
   textSecondary: '#5B5770',
-  textTertiary: '#8F8BA3',
+  /**
+   * Meta text. #6B6680 is about 5.5:1 on white (the old #8F8BA3 was about 3.3:1).
+   * Dark enough for 13px captions and placeholders.
+   */
+  textTertiary: '#6B6680',
   textInverse: '#FFFFFF',
 
   /** Monad ink, for the dark QR modules. */
   ink: '#0E091C',
 
-  /** Monad purple. */
+  /** Monad purple. Fill only: white on this is about 4.8:1. */
   primary: '#6E54FF',
   primaryPressed: '#5A40F0',
+  /**
+   * Purple for text and icons on white or lavender.
+   * #6E54FF on lavender is about 4.2:1; this is about 5.7:1 on primarySoft.
+   */
+  primaryInk: '#5340E6',
   primarySoft: '#F1EFFF',
   /** Monad lavender. */
   primarySoftBorder: '#DDD7FE',
 
-  success: '#0B9F6B',
+  /** Text green. About 5.4:1 on white and 4.8:1 on successSoft (the old #0B9F6B was about 3.4:1). */
+  success: '#0A7A4E',
   successSoft: '#E6F7F0',
-  warning: '#B4650A',
+  /** About 5.5:1 on white and 5.1:1 on warningSoft. */
+  warning: '#9A5A0C',
   warningSoft: '#FFF5E6',
   warningBorder: '#FFDCA8',
-  danger: '#D6364A',
+  /** About 6.5:1 on white and 5.7:1 on dangerSoft. */
+  danger: '#B42336',
   dangerSoft: '#FDECEE',
 
   /** Dimmed backdrop behind the ask sheet. */
@@ -86,12 +98,9 @@ export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xx
 
 export const radius = { sm: 8, md: 12, lg: 16, xl: 22, xxl: 28, pill: 999 } as const;
 
-/** Soft, low-contrast elevation. Cards rely on hairline borders; only floating layers get shadows. */
+/** Floating layers only. Resting cards use a hairline, not a shadow. */
 export const shadow = {
-  card: Platform.select<ViewStyle>({
-    android: { elevation: 0 },
-    default: { shadowColor: '#0E091C', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 1 } },
-  }),
+  card: {} as ViewStyle,
   sheet: Platform.select<ViewStyle>({
     android: { elevation: 16 },
     default: { shadowColor: '#0E091C', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: -4 } },
