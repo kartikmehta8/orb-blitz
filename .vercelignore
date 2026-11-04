@@ -1,0 +1,11 @@
+app/
+server/
+.github/
+graphify-out/
+**/node_modules/
+**/dist/
+**/.env*
+website/DESIGN.md
+website/PRODUCT.md
+website/ASSETS.md
+website/README.md

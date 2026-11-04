@@ -8,3 +8,5 @@ app/ios/
 .expo/
 *.log
 .DS_Store
+.vercel/
+.env*
