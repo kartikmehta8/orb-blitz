@@ -58,8 +58,10 @@ for (const file of [
 }
 
 await build({
-  entryPoints: ["src/interactions.jsx"],
-  outfile: "dist/assets/interactions.js",
+  entryPoints: { interactions: "src/interactions.jsx" },
+  outdir: "dist/assets",
+  splitting: true,
+  chunkNames: "chunks/[name]-[hash]",
   bundle: true,
   minify: true,
   format: "esm",
@@ -74,6 +76,7 @@ const sources = [
   "dist/download/index.html",
   "dist/privacy.html",
   "src/interactions.jsx",
+  "src/FeatureJourney.jsx",
 ];
 const names = new Set([
   "x",
@@ -91,6 +94,8 @@ const names = new Set([
   "circle-check",
   "download",
   "fingerprint",
+  "arrows-horizontal",
+  "link",
 ]);
 for (const file of sources) {
   for (const match of readFileSync(file, "utf8").matchAll(
@@ -112,6 +117,13 @@ writeFileSync(
   '<svg xmlns="http://www.w3.org/2000/svg">' + symbols.join("") + "</svg>",
 );
 copyFileSync("src/react-bits/LICENSE.md", "dist/assets/react-bits-license.txt");
+const gsapPackage = JSON.parse(
+  readFileSync("node_modules/gsap/package.json", "utf8"),
+);
+writeFileSync(
+  "dist/assets/gsap-license.txt",
+  `GSAP ${gsapPackage.version}\n${gsapPackage.license}\n`,
+);
 console.log(
   `Built ${names.size} icons, ${statSync("dist/assets/interactions.js").size} byte interaction bundle and verified ${releaseSize} byte APK for ${origin.origin}.`,
 );

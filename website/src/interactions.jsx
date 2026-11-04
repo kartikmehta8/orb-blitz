@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import TiltedCard from "./react-bits/TiltedCard.jsx";
 import "./site.css";
+import FeatureJourney from "./FeatureJourney.jsx";
 import release from "../release.json";
 
 const Icon = ({ name, ...props }) => (
@@ -47,6 +48,11 @@ function useReveal(ref, key, motion) {
     return () => animation.cancel();
   }, [key, motion]);
 }
+function FeatureExperience() {
+  const motion = useMotion();
+  return <FeatureJourney motion={motion} Icon={Icon} Mark={Mark} />;
+}
+
 const APPS = [
   {
     name: "WhatsApp",
@@ -945,6 +951,7 @@ function Download() {
 
 [
   ["playground-mount", Playground],
+  ["journey-mount", FeatureExperience],
   ["shield-mount", Shield],
   ["agents-mount", Agents],
   ["how-mount", How],
@@ -982,26 +989,50 @@ window.addEventListener("keydown", (e) => {
     inputMode = "keyboard";
 });
 window.addEventListener("pointerdown", () => (inputMode = "pointer"));
-const voice = document.querySelector(".voice-sample");
-voice?.addEventListener("click", () => {
-  document.getElementById("voice-note").textContent =
-    "Example transcript: “Pay 0.2 MON to kartik.eth on testnet.” This website did not record audio.";
-  if (
-    inputMode !== "keyboard" &&
-    !media.matches &&
-    document.documentElement.dataset.motion !== "off"
-  )
-    document
-      .querySelector(".wave")
-      .animate(
-        [
-          { transform: "scaleY(.6)" },
-          { transform: "scaleY(1)" },
-          { transform: "scaleY(.6)" },
-        ],
-        { duration: 240 },
-      );
-});
+const productVideo = document.getElementById("product-video");
+if (productVideo) {
+  const launch = document.getElementById("demo-launch");
+  const label = launch.querySelector("span");
+  const error = document.getElementById("demo-error");
+  launch.hidden = false;
+  const play = () => {
+    error.hidden = true;
+    if (productVideo.error) productVideo.load();
+    if (productVideo.ended) productVideo.currentTime = 0;
+    productVideo.play().catch((failure) => {
+      if (failure.name === "AbortError") return;
+      error.hidden = false;
+      label.textContent = "Try the demo again";
+    });
+  };
+  launch.addEventListener("click", play);
+  document.querySelectorAll("[data-play-demo]").forEach((link) => {
+    link.addEventListener("click", () => {
+      play();
+      productVideo.focus({ preventScroll: true });
+    });
+  });
+  productVideo.addEventListener("play", () => {
+    launch.hidden = true;
+    error.hidden = true;
+  });
+  productVideo.addEventListener("pause", () => {
+    label.textContent = productVideo.ended ? "Play again" : "Continue demo";
+    launch.hidden = false;
+  });
+  productVideo.addEventListener("ended", () => {
+    label.textContent = "Play again";
+    launch.hidden = false;
+  });
+  productVideo.addEventListener("error", () => {
+    error.hidden = false;
+    label.textContent = "Try the demo again";
+    launch.hidden = false;
+  });
+  window.addEventListener("orb-motion", () => {
+    if (document.documentElement.dataset.motion === "off") productVideo.pause();
+  });
+}
 const search = document.getElementById("faq-search");
 if (search) {
   let topic = "All";

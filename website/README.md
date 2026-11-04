@@ -16,7 +16,7 @@ Edit HTML, shared styles and static assets in `public/`, and React interactions 
 
 ## Vercel
 
-Import `kartikmehta8/orb`, choose Root Directory **website**, and use the checked-in `vercel.json`: Other framework, `npm ci`, `npm run verify`, output **dist**. The production branch is **main**. Current public deployment: https://orb-website-lovat.vercel.app. GitHub Actions also runs the website check on pull requests and main pushes that change this folder.
+Import `kartikmehta8/orb-blitz`, choose Root Directory **website**, and use the checked-in `vercel.json`: Other framework, `npm ci`, `npm run verify`, output **dist**. The production branch is **main**. Current public deployment: https://orb-website-lovat.vercel.app. GitHub Actions also runs the website check on pull requests and main pushes that change this folder.
 
 In the dashboard (Settings → Build & Deployment), check:
 
@@ -33,7 +33,7 @@ SITE_URL=https://your-production-domain.example npx vercel build --prod
 npx vercel deploy --prebuilt --prod
 ```
 
-The root `.vercelignore` excludes the Android app, agent server, dependencies and local environment files from CLI source uploads. Vercel's existing GitHub integration must have access to this private repository for automatic Git deployments. The manual CLI deploy works independently of that integration.
+The root `.vercelignore` excludes the Android app, agent server, dependencies and local environment files from CLI source uploads. Vercel's existing GitHub integration must have access to the selected repository for automatic Git deployments. The manual CLI deploy works independently of that integration.
 
 Canonical, social, sitemap and robots URLs use `VERCEL_PROJECT_PRODUCTION_URL`, falling back to `VERCEL_URL`. Set `SITE_URL=https://your-domain.example` to override them for another host. Local builds use localhost by default. No server secrets, wallet keys or app backend are needed.
 
