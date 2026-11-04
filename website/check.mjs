@@ -15,7 +15,7 @@ for (const [file, html] of pages) {
   assert.match(html, /name="description"/);
   assert.match(html, /<main id="main">/);
   assert.ok(!html.includes("__SITE_URL__"), "Unresolved site origin");
-  for (const [, ref] of html.matchAll(/(?:href|src)="([^\"]+)"/g)) {
+  for (const [, ref] of html.matchAll(/(?:href|src|poster)="([^\"]+)"/g)) {
     if (!ref.startsWith("/") && !ref.startsWith("#")) continue;
     const [pathname, fragment] = ref.split("#");
     let dest = pathname ? path.join("dist", pathname) : file;
@@ -45,9 +45,10 @@ const download = pages.get("dist/download/index.html");
 assert.ok(download.includes(release.sha256));
 assert.ok(download.includes(`v${release.version}`));
 
+const journey = readFileSync("src/FeatureJourney.jsx", "utf8");
 const code = readFileSync("src/interactions.jsx", "utf8");
 assert.ok(
-  !/fetch\([^)]*(?:rpc|\/api|ngrok)/i.test(code),
+  !/fetch\([^)]*(?:rpc|\/api|ngrok)/i.test(code + journey),
   "Demo must never contact wallet or agent endpoints",
 );
 for (const app of ["WhatsApp", "Email", "Telegram"])
@@ -66,8 +67,24 @@ for (const part of release.parts) {
 assert.equal(size, release.size);
 assert.equal(hash.digest("hex"), release.sha256);
 assert.ok(statSync("dist/assets/interactions.js").size < 300000);
+// Follow emitted static and lazy imports so a deploy cannot omit a GSAP chunk.
+const modules = new Set();
+function checkModule(file) {
+  if (modules.has(file)) return;
+  assert.ok(existsSync(file), `Missing bundled module ${file}`);
+  modules.add(file);
+  for (const [, ref] of readFileSync(file, "utf8").matchAll(
+    /\b(?:from\s*|import\s*(?:\(\s*)?)["'](\.[^"']+)["']/g,
+  ))
+    checkModule(path.resolve(path.dirname(file), ref));
+}
+checkModule(path.resolve("dist/assets/interactions.js"));
 const symbols = readFileSync("dist/assets/icons.svg", "utf8");
-for (const file of [...files, "src/interactions.jsx"]) {
+for (const file of [
+  ...files,
+  "src/interactions.jsx",
+  "src/FeatureJourney.jsx",
+]) {
   for (const [, icon] of readFileSync(file, "utf8").matchAll(
     /(?:icons\.svg#|icon:\s*['"]|<Icon\s+name=['"])([a-z0-9-]+)(?=['"`])/g,
   ))
@@ -77,5 +94,5 @@ const config = JSON.parse(readFileSync("vercel.json", "utf8"));
 assert.equal(config.outputDirectory, "dist");
 assert.equal(config.buildCommand, "npm run verify");
 console.log(
-  "PASS: pages, links/fragments, deployment metadata, fixture boundaries, icons, bundle budget and exact release APK size/SHA-256.",
+  "PASS: pages, links/fragments, module chunks, deployment metadata, fixture boundaries, icons, bundle budget and exact release APK size/SHA-256.",
 );

@@ -74,16 +74,98 @@
                 >Get Orb for Android
                 <svg class="icon" aria-hidden="true">
                   <use href="/assets/icons.svg#arrow-down" /></svg></a
-              ><a class="text-link" href="#playground"
-                >Take it for a spin
+              ><a class="text-link" href="#product-demo" data-play-demo
+                >Watch the demo
                 <svg class="icon" aria-hidden="true">
-                  <use href="/assets/icons.svg#arrow-up-right" /></svg
+                  <use href="/assets/icons.svg#player-play" /></svg
               ></a>
             </div>
             <p class="fine">Android 10+ · v1.0.0 preview · Native MON</p>
           </div>
         </div>
-        <div id="playground">
+        <figure class="product-demo" id="product-demo">
+          <div class="demo-screen">
+            <video
+              id="product-video"
+              controls
+              playsinline
+              preload="none"
+              width="1920"
+              height="1080"
+              poster="/assets/orb-demo-poster.jpg"
+              src="/assets/orb-demo.mp4"
+              aria-label="Orb product demo"
+              aria-describedby="demo-caption"
+              tabindex="0"
+            >
+              <track
+                kind="captions"
+                src="/assets/orb-demo-en.vtt"
+                srclang="en"
+                label="English"
+                default
+              />
+              Your browser does not support video.
+              <a href="/assets/orb-demo.mp4">Download the Orb demo</a>.
+            </video>
+            <div class="demo-launch-layer">
+              <button class="button light demo-launch" id="demo-launch" hidden>
+                <svg class="icon" aria-hidden="true">
+                  <use href="/assets/icons.svg#player-play" />
+                </svg>
+                <span>Play the demo</span>
+                <span class="demo-runtime">0:40</span>
+              </button>
+            </div>
+          </div>
+          <figcaption id="demo-caption">
+            <span>Orb in 40 seconds. Product simulation · no funds sent.</span>
+            <a class="text-link" href="#playground">
+              Try it yourself
+              <svg class="icon" aria-hidden="true">
+                <use href="/assets/icons.svg#arrow-down" />
+              </svg>
+            </a>
+          </figcaption>
+          <p class="demo-error" id="demo-error" role="alert" hidden>
+            The video couldn’t load. Try again or
+            <a href="/assets/orb-demo.mp4">open the video directly</a>.
+          </p>
+          <details class="demo-transcript">
+            <summary>
+              Read the demo transcript
+              <svg class="icon" aria-hidden="true">
+                <use href="/assets/icons.svg#arrow-down" />
+              </svg>
+            </summary>
+            <div>
+              <p>
+                Pay… or know when not to. Tap the orb. It reads your screen. Say
+                who to pay. ENS works too. You choose the network. Something
+                feels off? Scam Shield shows you why.
+              </p>
+              <p>
+                Let Claude or Codex ask to pay. You set the limits. You approve.
+                Check the fee, then confirm on your phone.
+              </p>
+              <p>
+                Receive by QR. See your history. Cap your spending. Read it
+                aloud. Basic parsing works when the agent’s offline. Orb. Pay
+                where you are.
+              </p>
+            </div>
+          </details>
+        </figure>
+      </section>
+      <section class="playground-section shell" id="playground">
+        <div class="section-heading">
+          <h2>Now, take it<br />for a spin.</h2>
+          <p>
+            Try a sample payment in WhatsApp, email or Telegram. No wallet or
+            funds needed.
+          </p>
+        </div>
+        <div>
           <div id="playground-mount">
             <p class="fallback">
               An Android wallet that meets you in the conversation. Enable
@@ -123,45 +205,11 @@
             agents you use.
           </p>
         </div>
-        <div class="feature-grid">
-          <article class="ens-feature">
-            <div class="feature-visual ens-visual">
-              <span class="name-token"
-                >kartik.eth
-                <svg class="icon" aria-hidden="true">
-                  <use href="/assets/icons.svg#arrow-down" /></svg></span
-              ><span class="address-token">0x7a…9B2e</span
-              ><span class="network-token">Monad testnet</span>
-            </div>
-            <h3>Names, not a wall of hex.</h3>
-            <p>
-              Pay an ENS name you can read. Orb resolves it on Ethereum and
-              checks it again on your phone before preparing a Monad payment.
-            </p>
-          </article>
-          <article class="voice-feature">
-            <div class="feature-visual voice-visual">
-              <button
-                class="voice-sample"
-                aria-label="Show voice input example"
-              >
-                <svg class="icon" aria-hidden="true">
-                  <use href="/assets/icons.svg#microphone" />
-                </svg></button
-              ><span>“Pay 0.2 MON<br />on testnet.”</span>
-              <div class="wave" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              </div>
-            </div>
-            <h3>Say it. Hear it. Check it.</h3>
-            <p>
-              Use Android’s speech dialog in Hindi or English, and hear review
-              cards read aloud. Approval stays in your hands.
-            </p>
-            <p class="fine" id="voice-note">
-              Tap the mic for an illustrative transcript. No recording.
-            </p>
-          </article>
+        <div id="journey-mount">
+          <p class="fallback">
+            Explore screen-context payments, Scam Shield, ENS names and voice
+            input. Enable JavaScript to try the examples.
+          </p>
         </div>
       </section>
       <section class="shield-section" id="scam-shield">

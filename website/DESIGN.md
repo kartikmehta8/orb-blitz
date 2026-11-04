@@ -225,7 +225,7 @@ The system feels direct and readable, with generous space around dense, operable
 - Large, tightly tracked headings beside compact product examples.
 - Optional phone depth with stable keyboard, paused and reduced-motion states.
 
-Extracted from the finished `public/style.css`, `src/site.css`, `src/interactions.jsx` and their built output in `dist/assets/interactions.css` and `dist/assets/interactions.js`. The app’s `app/src/theme.ts` at the verified source revision in PRODUCT.md is the identity authority; PRODUCT.md owns product truth and `.impeccable/surfaces/home.md` owns page strategy. These are website tokens, not a replacement for the native app’s type and spacing scale. The removed legacy purple styles are not a source for this system. Frontmatter owns base token values; the sidecar holds responsive thresholds, shadows, motion and self-contained component previews.
+Extracted from the finished `public/style.css`, `src/site.css`, `src/interactions.jsx` and their built output in `dist/assets/interactions.css` and `dist/assets/interactions.js`. The horizontal feature extension is grounded in `src/FeatureJourney.jsx` and `src/journey.css`; the supplied-film component uses `public/index.html`, `public/style.css` and the product-video handlers in `src/interactions.jsx`. The app’s `app/src/theme.ts` at the verified source revision in PRODUCT.md is the identity authority; PRODUCT.md owns product truth and `.impeccable/surfaces/home.md` owns page strategy. These are website tokens, not a replacement for the native app’s type and spacing scale. The removed legacy purple styles are not a source for this system. Frontmatter owns base token values; the sidecar holds responsive thresholds, shadows, motion and self-contained component previews.
 
 ## Colors
 
@@ -237,7 +237,7 @@ Ink is the primary action and heading color; Pressed Ink supplies primary-button
 
 ### Secondary
 
-Link Blue identifies link feedback, permission links, keyboard outlines and caret color. Its pale blue fill and darker blue text are confined to the voice example.
+Link Blue identifies link feedback, permission links, keyboard outlines and caret color. Pale Blue provides the contained Resolve panel’s fill. Speak uses an ink panel with white text and a pale blue waveform; these illustration treatments do not change the primary-button palette.
 
 ### Neutral
 
@@ -257,11 +257,13 @@ The frontmatter defines the base display, headline, title, body, feature body, h
 
 The final hero display is 66px from 601–800px and 54px at 600px and below, with 1.03 leading on mobile. The intermediate 60px and 62px declarations are overridden in the shipped cascade. Hero supporting copy becomes 17px at compact widths and 18px on mobile. Mobile section headings are 38px. Desktop download and privacy titles are 76px and 60px respectively; at mobile they become 46px and 42px. The download title also steps through 65px at 1100px and 55px at 800px.
 
-Product-example text is predominantly 12–14px. The phone review amount uses the dedicated amount role, with a 23px currency label. Feature copy uses the feature-body role and mobile 14px overrides. FAQ answers use 15px/1.75, becoming 14px on mobile. The privacy reading body uses 16px/1.8, becoming 14px on mobile. The actual FAQ search input is 14px; do not import the obsolete 16px legacy field rule.
+Product-example text is predominantly 12–14px. The phone review amount uses the dedicated amount role, with a 23px currency label. Feature copy uses the feature-body role and mobile 14px overrides. The horizontal feature headings use 44px, step to 38px at 1100px and 32px below 1000px; their compact leading and tracking inherit the heading character. New explorer captions, scene labels and navigation never drop below 12px. FAQ answers use 15px/1.75, becoming 14px on mobile. The privacy reading body uses 16px/1.8, becoming 14px on mobile. The actual FAQ search input is 14px; do not import the obsolete 16px legacy field rule.
 
 ## Layout
 
 The main shell is centered with a 1280px maximum outer width and the gutter token as its desktop inset. The header is capped separately at 1440px. Its height follows its content and vertical padding rather than a fixed bar height. Section rhythm is spacious: major blocks typically use 80–110px top spacing and 65–105px bottom spacing, while controls use compact gaps.
+
+The home product film fills the shell beneath the masthead and keeps its complete widescreen ratio (16:9) at every width. The video fits inside its frame without cropping. Its caption and adjacent action share a wrapping row with a compact top inset (14px); the transcript below has a readable maximum measure (72ch). The phone playground occupies its own section with a separate heading and top spacing (100px). These are the current home components’ layout, not a required composition for every surface.
 
 The desktop playground uses three columns: flexible context, a 350px phone stage and a 210px explanation rail, with a 690px minimum scene height. The phone itself remains 310 × 640px, with a dark 7px frame. Supporting feature and walkthrough grids use two columns; the safety lab uses a 1.2:1 split, the agent workspace 1.1:1, and the download layout 1.1:1. Privacy prose has a 920px maximum outer width, including shell padding.
 
@@ -275,19 +277,21 @@ Responsive changes follow the built CSS and interaction code:
 
 The walkthrough supports horizontal swipes over 60px when horizontal travel exceeds vertical travel by 1.5×; vertical scroll and pinch zoom remain available. Search controls and chips wrap without changing their labels. Hashes and connection templates wrap long strings. Page strategy remains in the surface brief rather than becoming a global composition rule.
 
+The horizontal feature explorer contains four finite panels. Desktop panels occupy 88% of the viewport with a 24px gap, leaving a next-panel edge; each pairs copy and illustration in a two-column grid with 45px padding. Padding becomes 32px at 1100px. Below 1000px, panels occupy 94% with 30px padding. At 600px and below, each panel is the viewport width minus 22px, uses a 14px gap, stacks copy over illustration and has a 650px minimum height. Its 27px/23px insets keep controls and examples readable; the desktop 460px minimum becomes 430px below 1000px. The carousel contains its own horizontal overflow.
+
 ## Elevation & Depth
 
-Most panels rest flat on white or cool gray, with fine borders separating rows. The device has a narrow gray edge and diffuse cast shadow; the floating Orb and temporary review sheet provide local depth inside it. ENS tokens use a small overlapping shadow. Selected sample-app controls and chat bubbles have faint contact shadows. The sidecar preserves exact values; none is a generic card shadow to apply everywhere.
+Most panels rest flat on white or cool gray, with fine borders separating rows. The device has a narrow gray edge and diffuse cast shadow; the floating Orb and temporary review sheet provide local depth inside it. The explorer’s white payment tile and overlapping ENS address token use local cast shadows and small rotations. Selected sample-app controls and chat bubbles have faint contact shadows. The sidecar preserves exact values; none is a generic card shadow to apply everywhere.
 
-**The Quiet Surface Rule.** Separate ordinary panels with tonal fills and fine rules. Reserve cast shadows for the device, floating Orb, temporary review sheet and small overlapping tokens.
+**The Quiet Surface Rule.** Separate ordinary panels with tonal fills and fine rules. Reserve cast shadows for the device, floating Orb, temporary review sheet and the explorer’s illustrative payment tile and overlapping tokens.
 
 The phone’s React Bits wrapper uses a bounded 5-degree pointer tilt, 1.008 hover scale and a gentle visible-only float. Glare, wrapper shadow, gyroscope, intro and click-to-flip effects are disabled; the phone supplies its own frame and shadow. Pause, reduced motion and keyboard use set tilt to zero, hover scale to one and float off. A pointer press returns the example to pointer mode. On eligible mobile success, one 360-degree turn runs for 900ms. It does not loop and is canceled when keyboard or quiet-motion mode takes over.
 
-Ordinary button and icon feedback lasts 180ms with `cubic-bezier(.22,1,.36,1)`. Sheet/verdict reveals and FAQ answer entry use opacity and a small translation for 180ms; the voice waveform response lasts 240ms. Reduced motion and Pause motion remove CSS animation/transition and smooth scrolling and prevent these scripted spatial effects. State changes and all actions remain available. The example’s 650ms reading, 1800ms guided review and 700ms simulated processing waits are state timing, not a promise of app or network speed.
+Ordinary button and icon feedback lasts 180ms with `cubic-bezier(.22,1,.36,1)`. Sheet/verdict reveals and FAQ answer entry use opacity and a small translation for 180ms. The explorer’s payment tile, ENS address rotation and waveform response use 220ms transform transitions with the same easing; keyboard use removes these scene transitions. Reduced motion and Pause motion remove CSS animation/transition and smooth scrolling and prevent these scripted spatial effects. State changes and all actions remain available. The example’s 650ms reading, 1800ms guided review and 700ms simulated processing waits are state timing, not a promise of app or network speed.
 
 ## Shapes
 
-Controls are rounded rectangles rather than universal pills. The primary action uses the button radius; its compact header variant uses the field radius. Panels and illustrations use the panel radius, while the playground has its own broader corner. Chips and risk labels are pills; the floating Orb, status dots and avatars are circles. The review sheet rounds only its top corners. Chat bubbles retain directional corners.
+Controls are rounded rectangles rather than universal pills. The primary action uses the button radius; its compact header variant uses the field radius. Panels, illustrations and the product-film frame use the panel radius, while the playground has its own broader corner. Chips and risk labels are pills; the floating Orb, status dots and avatars are circles. The review sheet rounds only its top corners. Chat bubbles retain directional corners.
 
 The original Orb glyph stays white on the near-black mark, with no orbital-ring decoration or replacement sphere. Its normal mark is 36px with a 27px glyph and the mark radius; mobile header sizing is 32px with a 24px glyph. Larger release and feature marks keep the same silhouette. The phone has the dedicated phone radius and matching rear face for the success turn.
 
@@ -307,6 +311,16 @@ The desktop section links use the navigation role and open vertical hit padding.
 
 Filter chips use a fine neutral border with transparent fill; selected chips use ink and white. Safety, FAQ and MCP selections expose `aria-pressed`. Sample app buttons use a white selected surface and faint contact shadow against Playground Gray. Their text hides between 601–800px, so explicit WhatsApp, Email and Telegram accessible names are retained. Risk labels pair a colored wash, matching text and an icon with the full verdict. The Testnet tag uses its separate orange pair. These status labels are passive, without button hover states.
 
+### Product film
+
+The supplied 40-second film sits on a flat Ink frame with an actual film-frame poster. It retains native media controls, inline mobile playback and a focusable player. Media loading is deferred with `preload="none"`; playback is user initiated, without autoplay or looping. The caption keeps the product-simulation and no-funds-sent label visible beside the action leading to the phone playground. Asset provenance belongs in ASSETS.md.
+
+A centered light-button overlay uses the incumbent button shape, a larger minimum height (64px), horizontal padding (26px) and a divided runtime label with tabular numerals (13px). It starts as “Play the demo,” disappears during playback, returns as “Continue demo” when paused and becomes “Play again” on completion. Replay resets the film to its beginning. The masthead’s “Watch the demo” anchor also starts playback and focuses the player while retaining its in-page destination. A blue focus-within outline encloses the media frame using the existing keyboard-focus treatment.
+
+Loading or playback failure exposes red alert text, a direct media link and “Try the demo again.” Retry reloads a failed media element before playing. English captions are offered as the default native track. A native transcript disclosure uses muted body copy (14px), a summary target of at least 44px and an arrow that turns upward when open; the open summary uses Ink and hover uses Link Blue. The caption and its adjacent action use compact text (13px).
+
+The global motion control pauses a playing film when page motion turns off, including a change to reduced-motion preference. Restoring page motion does not restart playback. Explicit native or overlay play remains available while page motion is off; quiet mode removes incidental page motion without blocking deliberate film viewing.
+
 ### Phone, floating Orb and review sheet
 
 The round floating Orb uses the original mark, its own contact shadow and a 0.95 press response. Selecting an app resets the local example. Tapping Orb shows reading feedback, then a review with amount, recipient, network and risk label. The sheet’s close control, Cancel and Escape reset the example; simulation leads to a receipt with copy and retry actions. Receipt status and loading feedback use status semantics. The site never connects a wallet; simulation labels are part of the component’s visual and content contract.
@@ -316,6 +330,16 @@ The Screen/Read/Review controls expose their selected stage. Play walkthrough ru
 ### Safety and agent examples
 
 The safety lab pairs a neutral sample-message panel with a colored verdict panel. Selected examples update the verdict, written reasons and icon together through a polite live region; the default is the amber urgent-message example. The terminal panel uses a contained dark treatment and wrapping Roboto Mono templates. Client selection changes the template and copy state. The adjacent approval sequence distinguishes idle, pending, approved and declined local examples; pending presents an ink approval button alongside a text Decline action. Example labels and placeholder configuration stay visible.
+
+### Horizontal feature explorer
+
+Pay, Check, Resolve and Speak share the panel radius and existing type, button, link and focus treatments. Pay uses Cool Surface and a white payment tile; Check uses Preview Gray around a semantic verdict scene; Resolve uses Pale Blue behind overlapping name/address tokens; Speak uses an ink panel with white copy. The containing panels stay flat. Each scene has one reversible local control: read/back, coffee/refund example, sample resolution/reset, or sample transcript/reset. Keep the illustrative-payment, sample-verdict, no-live-lookup and no-recording labels visible. No scene connects a wallet, sends funds, records audio or performs live ENS resolution.
+
+On motion-enabled screens at least 1000px wide and 650px high with hover and a fine pointer, vertical scrolling pins the explorer 32px from the viewport top and moves the track horizontally in direct, linear proportion to scroll travel. GSAP and ScrollTrigger import only when this eligible explorer comes within 350px of the viewport. The sequence ends after the track’s overflow distance; it does not loop or intercept the wheel. Scope the media context to this component, revert its animation and pin, and disconnect its observer and listeners on cleanup.
+
+Opening or closing the film transcript refreshes the active desktop explorer’s scroll measurements so the changed content height preserves its pin position; this listener is removed with the desktop media context.
+
+Touch, smaller screens, short desktop viewports, Pause motion and reduced motion use native horizontal scrolling with mandatory start snapping. Mouse drag supplements scrolling in both modes. Previous/next arrows and four named jump buttons remain available, with disabled end arrows, a polite current-panel count, a progress rule and a movement hint that reflects the current mode. Arrow controls are 48px on desktop and 44px on mobile; named navigation buttons retain a 48px minimum height. Left/Right and Home/End navigate immediately and focus the corresponding named button; pointer navigation may scroll smoothly when motion is enabled. Inactive panels are inert and hidden from assistive technology. Restoring native mode retains the selected panel.
 
 ### Walkthrough
 
