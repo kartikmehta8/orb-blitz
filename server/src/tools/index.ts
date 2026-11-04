@@ -5,6 +5,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { askUser } from './askUser';
+import { assessScreen } from './assessScreen';
 import { getTxStatus } from './getTxStatus';
 import { getWalletBalance } from './getWalletBalance';
 import { inspectAddress } from './inspectAddress';
@@ -41,7 +42,7 @@ function entry<S extends z.ZodObject>(tool: Tool<S>): Entry {
 }
 
 const REGISTRY = new Map(
-  [getWalletBalance, inspectAddress, prepareNativeTransfer, getTxStatus, askUser].map((t) => [t.name, entry(t)]),
+  [getWalletBalance, inspectAddress, assessScreen, prepareNativeTransfer, getTxStatus, askUser].map((t) => [t.name, entry(t)]),
 );
 
 /** Tool definitions sent to the Messages API. */

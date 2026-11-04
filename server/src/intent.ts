@@ -72,7 +72,11 @@ export type IntentWarning =
   | 'SELF_TRANSFER'
   | 'AMOUNT_NOT_IN_CONTEXT'
   | 'PARSED_WITHOUT_AI'
-  | 'CLOSE_TO_DAILY_LIMIT';
+  | 'CLOSE_TO_DAILY_LIMIT'
+  | 'LOOKALIKE_RECIPIENT'
+  | 'ENS_NOT_PRIMARY'
+  | 'ENS_ADDRESS_CHANGED'
+  | 'ENS_UNUSUAL_CHARACTERS';
 
 /** A proposed native MON transfer. Never signed by the server. */
 export type Intent = {

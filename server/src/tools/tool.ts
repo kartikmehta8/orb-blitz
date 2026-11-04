@@ -6,6 +6,7 @@ import type { z } from 'zod';
 import type { ChainClient } from '../chain';
 import type { Intent, ScreenContextInput, TransferErrorCode } from '../intent';
 import type { Clarification } from '../schemas';
+import type { Assessment } from '../risk';
 
 /** Per-request state the tools read and write. The model can only reach it through tool inputs. */
 export type ToolCtx = {
@@ -21,6 +22,8 @@ export type ToolCtx = {
   intents: Intent[];
   /** Set by `ask_user`; ends the loop. */
   clarification: Clarification | null;
+  /** Set by assess_screen when the model looks at the screen. */
+  assessment?: Assessment | null;
 };
 
 /** Error codes a tool can return: transfer validation codes plus dispatcher codes. */
