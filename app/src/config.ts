@@ -2,25 +2,25 @@
  * @file Runtime configuration from `EXPO_PUBLIC_*` env vars plus chain constants.
  *
  * `EXPO_PUBLIC_*` values are inlined into the JS bundle at build time, so they
- * are public. The agent call uses the Privy access token from the SDK, which
+ * are public. Each one must be written out as `process.env.EXPO_PUBLIC_NAME`:
+ * Expo only inlines that exact form, so an alias (`const env = process.env`)
+ * works in development and is empty in a release build. The agent call uses the Privy access token from the SDK, which
  * is not an env var and is not stored here.
  */
 import { ENS_RPC_URL, MAINNET_CHAIN_ID, monadChain, NETWORKS, TESTNET_CHAIN_ID, type ChainId } from './intent';
 
-const env = process.env;
-
 export const config = {
-  privyAppId: env.EXPO_PUBLIC_PRIVY_APP_ID ?? '',
-  privyClientId: env.EXPO_PUBLIC_PRIVY_CLIENT_ID ?? '',
+  privyAppId: process.env.EXPO_PUBLIC_PRIVY_APP_ID ?? '',
+  privyClientId: process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID ?? '',
   /** Agent server base URL, no trailing slash. */
-  agentUrl: (env.EXPO_PUBLIC_AGENT_URL ?? '').replace(/\/+$/, ''),
+  agentUrl: (process.env.EXPO_PUBLIC_AGENT_URL ?? '').replace(/\/+$/, ''),
   /** Per-network RPC; env overrides the public endpoints. */
   rpcUrl: {
-    [TESTNET_CHAIN_ID]: env.EXPO_PUBLIC_MONAD_RPC_URL || NETWORKS[TESTNET_CHAIN_ID].rpcUrl,
-    [MAINNET_CHAIN_ID]: env.EXPO_PUBLIC_MONAD_MAINNET_RPC_URL || NETWORKS[MAINNET_CHAIN_ID].rpcUrl,
+    [TESTNET_CHAIN_ID]: process.env.EXPO_PUBLIC_MONAD_RPC_URL || NETWORKS[TESTNET_CHAIN_ID].rpcUrl,
+    [MAINNET_CHAIN_ID]: process.env.EXPO_PUBLIC_MONAD_MAINNET_RPC_URL || NETWORKS[MAINNET_CHAIN_ID].rpcUrl,
   } as Record<ChainId, string>,
   /** Ethereum mainnet RPC for ENS lookups. Names live on L1; payments stay on Monad. */
-  ensRpcUrl: env.EXPO_PUBLIC_ENS_RPC_URL || ENS_RPC_URL,
+  ensRpcUrl: process.env.EXPO_PUBLIC_ENS_RPC_URL || ENS_RPC_URL,
   /** Testnet only: mainnet MON is real and has no faucet. */
   faucetUrl: 'https://faucet.monad.xyz',
 } as const;
