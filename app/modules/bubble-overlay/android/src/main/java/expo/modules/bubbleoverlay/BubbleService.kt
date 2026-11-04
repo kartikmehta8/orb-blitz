@@ -15,12 +15,14 @@
 package expo.modules.bubbleoverlay
 
 import android.animation.ValueAnimator
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.graphics.Outline
@@ -46,6 +48,10 @@ import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -56,6 +62,14 @@ class BubbleService : Service() {
     const val ACTION_HIDE = "expo.modules.bubbleoverlay.HIDE"
     const val ACTION_STOP = "expo.modules.bubbleoverlay.STOP"
     const val ACTION_SET_STATE = "expo.modules.bubbleoverlay.SET_STATE"
+    /** Sent after the app stores a new inbox token: (re)start listening for agent requests. */
+    const val ACTION_INBOX = "expo.modules.bubbleoverlay.INBOX"
+    /** SharedPreferences for the agent inbox: server URL, token, newest request seen. */
+    const val INBOX_PREFS = "orb_inbox"
+    const val INBOX_URL = "url"
+    const val INBOX_TOKEN = "token"
+    private const val INBOX_SINCE = "since"
+    private const val AGENT_CHANNEL_ID = "agent_requests"
     /** Intent extra for [ACTION_SET_STATE]: idle, capturing, thinking, success, or error. */
     const val EXTRA_STATE = "state"
 
@@ -98,6 +112,8 @@ class BubbleService : Service() {
   private var lastTapAt = 0L
   /** Posted revert of success/error back to idle. Cleared when a newer state arrives. */
   private var revertOrb: Runnable? = null
+  /** Long-polls the server for agent payment requests while the orb runs. */
+  private var inboxThread: Thread? = null
 
   override fun onBind(intent: Intent?): IBinder? = null
 
@@ -105,7 +121,7 @@ class BubbleService : Service() {
     super.onCreate()
     isRunning = true
     // Foreground first: stopping before startForeground() after startForegroundService() crashes the app.
-    if (!startInForeground() || !addBubble()) stopSelf()
+    if (!startInForeground() || !addBubble()) stopSelf() else startInbox()
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -113,6 +129,7 @@ class BubbleService : Service() {
       ACTION_STOP -> stopSelf()
       ACTION_HIDE -> setBubbleVisible(false)
       ACTION_SET_STATE -> applyOrbState(intent.getStringExtra(EXTRA_STATE))
+      ACTION_INBOX -> startInbox()
       else -> setBubbleVisible(true) // ACTION_SHOW, or a null intent on a START_STICKY restart.
     }
     return START_STICKY
@@ -126,6 +143,8 @@ class BubbleService : Service() {
 
   override fun onDestroy() {
     isRunning = false
+    inboxThread?.interrupt()
+    inboxThread = null
     handler.removeCallbacksAndMessages(null)
     snapAnimator?.cancel()
     bubble?.let { view -> runCatching { windowManager.removeView(view) } }
@@ -155,6 +174,109 @@ class BubbleService : Service() {
     } catch (e: RuntimeException) {
       false
     }
+  }
+
+  /**
+   * Starts the inbox thread once the app has stored a token. One thread at most;
+   * it re-reads the token every round, so a rotated token is picked up.
+   */
+  private fun startInbox() {
+    if (inboxThread?.isAlive == true) return
+    val prefs = getSharedPreferences(INBOX_PREFS, MODE_PRIVATE)
+    if (prefs.getString(INBOX_TOKEN, null) == null) return
+    inboxThread = Thread({ inboxLoop() }, "orb-inbox").apply {
+      isDaemon = true
+      start()
+    }
+  }
+
+  /**
+   * Holds one `GET /inbox/wait` open at a time (the server answers at once on a new
+   * request, otherwise after 25 s) and posts a notification for each new request.
+   * Errors back off from 2 s to 60 s. A 401 means the token was rotated or the
+   * server forgot it, so it waits for the app to register again.
+   * ponytail: runs only while the orb runs; FCM would cover the orb-off case.
+   */
+  private fun inboxLoop() {
+    val prefs = getSharedPreferences(INBOX_PREFS, MODE_PRIVATE)
+    var backoff = 2_000L
+    try {
+      while (!Thread.currentThread().isInterrupted) {
+        val base = prefs.getString(INBOX_URL, null)
+        val token = prefs.getString(INBOX_TOKEN, null)
+        if (base == null || token == null) return
+        val since = prefs.getLong(INBOX_SINCE, 0L)
+        try {
+          val conn = (URL("$base/inbox/wait?since=$since").openConnection() as HttpURLConnection).apply {
+            connectTimeout = 10_000
+            readTimeout = 40_000
+            setRequestProperty("Authorization", "Bearer $token")
+          }
+          val code = conn.responseCode
+          if (code == 401) {
+            conn.disconnect()
+            Thread.sleep(60_000)
+            continue
+          }
+          if (code != 200) throw java.io.IOException("HTTP $code")
+          val requests = JSONObject(conn.inputStream.bufferedReader().use { it.readText() }).getJSONArray("requests")
+          var newest = since
+          for (i in 0 until requests.length()) {
+            val r = requests.getJSONObject(i)
+            notifyAgentRequest(r.getString("id"), r.getString("title"), r.getString("body"))
+            newest = maxOf(newest, r.getLong("createdAt"))
+          }
+          prefs.edit().putLong(INBOX_SINCE, newest).apply()
+          backoff = 2_000L
+        } catch (e: java.io.IOException) {
+          Thread.sleep(backoff)
+          backoff = (backoff * 2).coerceAtMost(60_000L)
+        } catch (e: org.json.JSONException) {
+          Thread.sleep(backoff)
+          backoff = (backoff * 2).coerceAtMost(60_000L)
+        }
+      }
+    } catch (e: InterruptedException) {
+      // Service stopped.
+    }
+  }
+
+  /**
+   * Heads-up notification for one agent request. Tapping opens the review sheet;
+   * the payment still needs the user's fingerprint there.
+   * @param id Request id, also the notification id so one request never shows twice.
+   * @param title e.g. "Claude wants to pay 0.2 MON".
+   * @param body e.g. "To kartik.eth, for API credits. Tap to review."
+   */
+  private fun notifyAgentRequest(id: String, title: String, body: String) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+      ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+    ) return
+    val manager = NotificationManagerCompat.from(this)
+    manager.createNotificationChannel(
+      NotificationChannelCompat.Builder(AGENT_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_HIGH)
+        .setName(getString(R.string.agent_channel_name))
+        .build()
+    )
+    val open = PendingIntent.getActivity(
+      this,
+      id.hashCode(),
+      Intent(Intent.ACTION_VIEW, Uri.parse("$ASK_URI?request=${Uri.encode(id)}"))
+        .setPackage(packageName)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+      PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+    val notification = NotificationCompat.Builder(this, AGENT_CHANNEL_ID)
+      .setSmallIcon(R.drawable.ic_stat_bubble)
+      .setContentTitle(title)
+      .setContentText(body)
+      .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+      .setPriority(NotificationCompat.PRIORITY_HIGH)
+      .setCategory(NotificationCompat.CATEGORY_REMINDER)
+      .setAutoCancel(true)
+      .setContentIntent(open)
+      .build()
+    manager.notify(id, 0, notification)
   }
 
   /**

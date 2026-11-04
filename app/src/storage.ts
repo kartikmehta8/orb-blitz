@@ -9,7 +9,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Address, Hash } from 'viem';
 import { OrbApiError, toOrbApiError } from './errors';
-import { toChecksumAddress } from './intent';
+import { isChainId, toChecksumAddress, type ChainId } from './intent';
 
 /** Storage keys. Bump the version suffix when a shape changes. */
 export const KEYS = {
@@ -18,12 +18,14 @@ export const KEYS = {
   executed: 'executed:v1',
   pending: 'pending:v1',
   activity: 'activity:v1',
+  /** ENS name to the address it resolved to when it was last paid. */
+  ensBook: 'ensBook:v1',
 } as const;
 
 /** Pre-activity single-entry key, migrated into `activity:v1` on first read. */
 const LEGACY_LAST_TX_KEY = 'lastTx:v1';
 
-/** Most recent payments kept for the Activity tab. */
+/** Most recent payments kept for the Activity screen. */
 const MAX_ACTIVITY = 20;
 
 /** Most executed intent IDs kept; intents expire after 5 min, so this is generous. */
@@ -127,6 +129,29 @@ export async function getRecipients(): Promise<Set<string>> {
   return new Set((await readJson(KEYS.recipients, isStringArray))?.map((a) => a.toLowerCase()) ?? []);
 }
 
+const isStringRecord = (v: unknown): v is Record<string, string> =>
+  isRecord(v) && Object.values(v).every((a) => typeof a === 'string');
+
+/**
+ * ENS names this wallet has paid, with the address each resolved to then.
+ * @returns Name to lowercased address.
+ */
+export async function getEnsBook(): Promise<Record<string, string>> {
+  return (await readJson(KEYS.ensBook, isStringRecord)) ?? {};
+}
+
+/**
+ * Remembers which address a name resolved to after a confirmed payment.
+ * @param name Normalized ENS name.
+ * @param address Address it was paid at.
+ * @returns Resolves once stored.
+ */
+export async function addEnsName(name: string, address: Address): Promise<void> {
+  const book = await getEnsBook();
+  if (book[name] === address.toLowerCase()) return;
+  await writeJson(KEYS.ensBook, { ...book, [name]: address.toLowerCase() });
+}
+
 /**
  * Remembers a recipient after a confirmed payment.
  * @param address Recipient address.
@@ -163,7 +188,7 @@ export async function markExecuted(id: string): Promise<void> {
 }
 
 /**
- * A finished payment, shown in the Activity tab. Chain data plus an optional
+ * A finished payment, shown on the Activity screen. Chain data plus an optional
  * display memo. Records written before memos have no `memo` field.
  */
 export type ActivityTx = {
@@ -174,6 +199,10 @@ export type ActivityTx = {
   at: number;
   /** Display-only note from the intent, e.g. "dinner". Absent on older records. */
   memo?: string;
+  /** Network it was sent on. Absent on records from before mainnet support (testnet). */
+  chainId?: ChainId;
+  /** ENS name that was paid, shown instead of the address. */
+  ensName?: string;
 };
 
 const isActivityTx = (v: unknown): v is ActivityTx =>
@@ -184,7 +213,9 @@ const isActivityTx = (v: unknown): v is ActivityTx =>
   isWeiString(v.amountWei) &&
   (v.status === 'confirmed' || v.status === 'failed') &&
   typeof v.at === 'number' &&
-  (v.memo === undefined || typeof v.memo === 'string');
+  (v.memo === undefined || typeof v.memo === 'string') &&
+  (v.chainId === undefined || isChainId(v.chainId)) &&
+  (v.ensName === undefined || typeof v.ensName === 'string');
 
 /**
  * Reads recent payments, newest first. A missing key or an empty list is

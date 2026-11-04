@@ -6,7 +6,7 @@ import { runAgent } from '../src/agent';
 import { parseFallback } from '../src/fallbackParser';
 import { sanitizeMemo } from '../src/intent';
 import { runTool } from '../src/tools/index';
-import { makeCtx, makeRequest, mockChain, msg, RECIPIENT, scripted } from './helpers';
+import { makeCtx, makeRequest, mockChains, mockEns, msg, RECIPIENT, scripted } from './helpers';
 
 describe('sanitizeMemo', () => {
   it('trims, strips control characters, and caps at 80', () => {
@@ -25,19 +25,19 @@ describe('memo on intents', () => {
   it('fallback: "send 1 MON to Rahul for dinner" → memo dinner, amount and recipient unchanged', () => {
     const parsed = parseFallback({
       contextText: `Rahul ${RECIPIENT}`,
-      userTexts: ['send 1 MON to Rahul for dinner'],
+      userTexts: ['testnet: send 1 MON to Rahul for dinner'],
       perTxMon: '1',
     });
-    expect(parsed).toEqual({ kind: 'candidate', to: RECIPIENT, amountMon: '1', memo: 'dinner' });
+    expect(parsed).toEqual({ kind: 'candidate', chainId: 10143, to: RECIPIENT, amountMon: '1', memo: 'dinner' });
   });
 
   it('fallback path on the agent keeps the memo off the amount and recipient', async () => {
     const { response } = await runAgent(
       makeRequest({
-        messages: [{ role: 'user', text: 'send 1 MON to Rahul for dinner' }],
+        messages: [{ role: 'user', text: 'testnet: send 1 MON to Rahul for dinner' }],
         context: { source: 'screen', appLabel: 'WhatsApp', text: `Rahul ${RECIPIENT}`, capturedAt: 0 },
       }),
-      { createMessage: null, chain: mockChain(), model: 'test-model' },
+      { createMessage: null, chains: mockChains(), ens: mockEns(), model: 'test-model' },
     );
     expect(response.intents[0]).toMatchObject({
       to: RECIPIENT,
@@ -65,7 +65,7 @@ describe('memo on intents', () => {
       msg({ type: 'tool_use', name: 'prepare_native_transfer', input: { to: RECIPIENT, amount_mon: '0.2', reason: 'r', memo: 'dinner' } }),
       msg({ type: 'text', text: 'Ready.' }),
     );
-    const { response } = await runAgent(makeRequest(), { createMessage: model, chain: mockChain(), model: 'test-model' });
+    const { response } = await runAgent(makeRequest(), { createMessage: model, chains: mockChains(), ens: mockEns(), model: 'test-model' });
     expect(response.intents[0]).toMatchObject({ to: RECIPIENT, amountWei: '200000000000000000', memo: 'dinner', parsedBy: 'agent' });
   });
 });

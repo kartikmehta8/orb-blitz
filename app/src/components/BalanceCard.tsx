@@ -1,63 +1,45 @@
 /**
- * @file Wallet tab balance card: flat white card with the MON balance, a
- * copyable address chip and four quick actions (Receive, Copy, Faucet,
- * Explorer). Receive opens the QR sheet.
+ * @file Wallet hero: balance on the viewed network, address chip, and the
+ * round quick actions (Send, Receive, Faucet on testnet, Explorer).
+ * Send opens the Ask tab, where Orb prepares the payment.
  */
-import { Feather } from '@expo/vector-icons';
+import { Icon } from './Icon';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { Address } from 'viem';
 import { addressUrl, config } from '../config';
-import { formatMon, shortAddress } from '../intent';
+import { formatMon, NETWORKS, shortAddress, TESTNET_CHAIN_ID } from '../intent';
+import { useViewNetwork } from '../network';
 import { colors, HIT, radius, space } from '../theme';
 import { monValue } from './format';
 import { ReceiveSheet } from './ReceiveSheet';
-import { Button, Card, Text, type IconName } from './ui';
+import { Button, Text, type IconName } from './ui';
 import { useCopy } from './useCopy';
 
 const ACTION_SIZE = 52;
 
 /**
- * Round quick action with a label underneath.
- * @param props.icon Feather icon.
- * @param props.label Visible label.
- * @param props.a11yLabel Screen-reader label.
- * @param props.primary Purple fill for the lead action.
- * @param props.disabled Blocks presses.
- * @param props.onPress Press handler.
- * @returns The action button.
+ * Round action with a label underneath.
+ * @returns A 48pt+ pressable.
  */
-function QuickAction({
-  icon,
-  label,
-  a11yLabel,
-  primary,
-  disabled,
-  onPress,
-}: {
-  icon: IconName;
-  label: string;
-  a11yLabel: string;
-  primary?: boolean;
-  disabled: boolean;
-  onPress: () => void;
-}) {
+function QuickAction(props: { icon: IconName; label: string; a11yLabel: string; disabled: boolean; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={a11yLabel}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[styles.action, disabled && styles.disabled]}
+      accessibilityLabel={props.a11yLabel}
+      accessibilityState={{ disabled: props.disabled }}
+      disabled={props.disabled}
+      onPress={props.onPress}
+      style={[styles.action, props.disabled && styles.disabled]}
     >
       {({ pressed }) => (
         <>
-          <View style={[styles.actionCircle, primary && styles.actionPrimary, pressed && styles.pressed]}>
-            <Feather name={icon} size={20} color={primary ? colors.textInverse : colors.text} />
+          <View style={[styles.actionCircle, pressed && styles.actionPressed]}>
+            <Icon name={props.icon} size={20} color={colors.textInverse} />
           </View>
           <Text variant="captionStrong" numberOfLines={1}>
-            {label}
+            {props.label}
           </Text>
         </>
       )}
@@ -66,11 +48,12 @@ function QuickAction({
 }
 
 /**
- * Balance card.
+ * Balance hero.
  * @param props.address Embedded wallet address; null while the wallet is being created.
- * @param props.balance Balance in wei; null until loaded.
+ * @param props.balance Balance in wei on the viewed network; null until loaded.
  * @param props.balanceError Last balance fetch failed.
- * @returns The card plus its Receive sheet.
+ * @param props.onRetry Loads the balance again.
+ * @returns The hero plus its Receive sheet.
  */
 export function BalanceCard({
   address,
@@ -81,117 +64,98 @@ export function BalanceCard({
   address: Address | null;
   balance: bigint | null;
   balanceError: boolean;
-  /** Loads the balance again. */
   onRetry?: () => void;
 }) {
   const { copied, copy } = useCopy();
+  const [chainId] = useViewNetwork();
   const [receiveOpen, setReceiveOpen] = useState(false);
-  const copyAddress = () => address && void copy(address);
   const open = (url: string) => void Linking.openURL(url);
+  const testnet = chainId === TESTNET_CHAIN_ID;
 
   return (
-    <Card style={styles.card}>
-      <View style={styles.top}>
-        <Text variant="overline" color="textTertiary">
-          Balance
-        </Text>
-        {balance !== null ? (
-          <View style={styles.balanceRow} accessible accessibilityLabel={`Balance ${formatMon(balance)}`}>
-            <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={styles.balance}>
-              {monValue(balance)}
-            </Text>
-            <Text variant="headline" color="textSecondary">
-              MON
-            </Text>
-          </View>
-        ) : balanceError ? null : (
-          <View style={styles.placeholder} accessible accessibilityLabel="Balance loading" />
-        )}
-        {balanceError ? (
-          <View style={styles.error} accessibilityRole="alert">
-            <View style={styles.inline}>
-              <Feather name="alert-circle" size={16} color={colors.danger} />
-              <Text variant="caption" color="danger" style={styles.flex}>
-                Couldn’t load your balance.
-              </Text>
-            </View>
-            {onRetry ? <Button size="sm" variant="secondary" icon="refresh-cw" label="Retry" onPress={onRetry} /> : null}
-          </View>
-        ) : null}
+    <View style={styles.hero}>
+      {balance !== null ? (
+        <View style={styles.balanceRow} accessible accessibilityLabel={`Balance ${formatMon(balance)} on ${NETWORKS[chainId].name}`}>
+          <Text variant="display" numberOfLines={1} adjustsFontSizeToFit style={styles.balance}>
+            {monValue(balance)}
+          </Text>
+          <Text variant="title" color="textSecondary">
+            MON
+          </Text>
+        </View>
+      ) : balanceError ? null : (
+        <View style={styles.placeholder} accessible accessibilityLabel="Balance loading" />
+      )}
+      {balanceError ? (
+        <View style={styles.error} accessibilityRole="alert">
+          <Text variant="callout" color="danger" align="center">
+            Couldn’t load your balance.
+          </Text>
+          {onRetry ? <Button size="sm" variant="secondary" icon="refresh-cw" label="Retry" onPress={onRetry} /> : null}
+        </View>
+      ) : null}
 
-        {address ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copied ? 'Address copied' : `Copy wallet address ${shortAddress(address)}`}
-            onPress={copyAddress}
-            hitSlop={space.xs}
-            style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-          >
-            <Text variant="mono" color="textSecondary">
-              {copied ? 'Copied' : shortAddress(address)}
-            </Text>
-            <Feather name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.success : colors.textTertiary} />
-          </Pressable>
-        ) : (
-          <View style={styles.chip} accessibilityLabel="Creating your wallet">
-            <View style={styles.chipSkeleton} />
-            <Text variant="caption" color="textSecondary">
-              Creating your wallet…
-            </Text>
-          </View>
-        )}
-      </View>
+      {address ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copied ? 'Address copied' : `Copy wallet address ${shortAddress(address)}`}
+          onPress={() => void copy(address)}
+          hitSlop={space.xs}
+          style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+        >
+          <Text variant="mono" color="textSecondary" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.address}>
+            {copied ? 'Copied' : address}
+          </Text>
+          <Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.success : colors.textTertiary} />
+        </Pressable>
+      ) : (
+        <Text variant="caption" color="textSecondary">
+          Creating your wallet…
+        </Text>
+      )}
 
       <View style={styles.actions}>
-        <QuickAction icon="arrow-down-left" label="Receive" a11yLabel="Receive MON" primary disabled={!address} onPress={() => setReceiveOpen(true)} />
-        <QuickAction
-          icon={copied ? 'check' : 'copy'}
-          label={copied ? 'Copied' : 'Copy'}
-          a11yLabel={copied ? 'Address copied' : 'Copy address'}
-          disabled={!address}
-          onPress={copyAddress}
-        />
-        <QuickAction icon="droplet" label="Faucet" a11yLabel="Get testnet MON from the faucet" disabled={!address} onPress={() => open(config.faucetUrl)} />
+        <QuickAction icon="arrow-up-right" label="Send" a11yLabel="Send MON with Orb" disabled={!address} onPress={() => router.navigate('/chat')} />
+        <QuickAction icon="arrow-down-left" label="Receive" a11yLabel="Receive MON" disabled={!address} onPress={() => setReceiveOpen(true)} />
+        {testnet ? (
+          <QuickAction icon="droplet" label="Faucet" a11yLabel="Get testnet MON from the faucet" disabled={!address} onPress={() => open(config.faucetUrl)} />
+        ) : (
+          <QuickAction icon="clock" label="Activity" a11yLabel="Payment history" disabled={false} onPress={() => router.navigate('/activity')} />
+        )}
         <QuickAction
           icon="external-link"
           label="Explorer"
           a11yLabel="View wallet on explorer"
           disabled={!address}
-          onPress={() => address && open(addressUrl(address))}
+          onPress={() => address && open(addressUrl(address, chainId))}
         />
       </View>
 
       {address ? <ReceiveSheet address={address} visible={receiveOpen} onClose={() => setReceiveOpen(false)} /> : null}
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { padding: space.xl, gap: space.xl },
-  top: { gap: space.sm, alignItems: 'flex-start' },
-  flex: { flex: 1 },
-  inline: { flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'stretch' },
-  balanceRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
-  balance: { flexShrink: 1 },
-  placeholder: { width: 168, height: 46, borderRadius: radius.md, backgroundColor: colors.borderStrong },
-  error: { alignSelf: 'stretch', gap: space.sm },
+  hero: { alignItems: 'center', gap: space.sm, paddingTop: space.lg, paddingBottom: space.sm },
+  balanceRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, maxWidth: '100%' },
+  balance: { flexShrink: 1, fontSize: 44, lineHeight: 52 },
+  placeholder: { width: 180, height: 52, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  error: { alignItems: 'center', gap: space.sm },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    minHeight: HIT,
+    minHeight: 36,
+    maxWidth: '100%',
     paddingHorizontal: space.md,
+    marginTop: space.xs,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceMuted,
   },
-  chipSkeleton: { width: 88, height: 14, borderRadius: radius.sm, backgroundColor: colors.borderStrong },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: space.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
+  chipPressed: { backgroundColor: colors.border },
+  address: { flexShrink: 1 },
+  actions: { flexDirection: 'row', justifyContent: 'space-between', alignSelf: 'stretch', marginTop: space.xl, paddingHorizontal: space.sm },
   action: { alignItems: 'center', gap: space.sm, minWidth: HIT + space.lg },
   actionCircle: {
     width: ACTION_SIZE,
@@ -199,9 +163,8 @@ const styles = StyleSheet.create({
     borderRadius: ACTION_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.primary,
   },
-  actionPrimary: { backgroundColor: colors.primary },
-  pressed: { opacity: 0.7 },
+  actionPressed: { backgroundColor: colors.primaryPressed },
   disabled: { opacity: 0.4 },
 });

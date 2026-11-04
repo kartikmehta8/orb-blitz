@@ -6,7 +6,7 @@ import { zeroAddress } from 'viem';
 import { describe, expect, it } from 'vitest';
 import type { Intent } from '../src/intent';
 import { runTool, TOOL_DEFS } from '../src/tools/index';
-import { makeCtx, mockChain, OTHER, RECIPIENT, WALLET } from './helpers';
+import { makeCtx, mockChain, mockChains, OTHER, RECIPIENT, WALLET } from './helpers';
 
 const transfer = (input: Record<string, unknown>, ctx = makeCtx()) =>
   runTool('prepare_native_transfer', { to: RECIPIENT, amount_mon: '0.2', reason: 'dinner', ...input }, ctx);
@@ -67,11 +67,11 @@ describe('prepare_native_transfer', () => {
   });
 
   it('address only in a user message → provenance "user"; in both → "both"', async () => {
-    const userOnly = makeCtx({ context: null, userTexts: [`send 0.2 MON to ${OTHER}`] });
+    const userOnly = makeCtx({ context: null, userTexts: [`send 0.2 MON to ${OTHER} on testnet`] });
     await transfer({ to: OTHER }, userOnly);
     expect(userOnly.intents[0]?.provenance).toEqual({ source: 'user' });
 
-    const both = makeCtx({ userTexts: [RECIPIENT.toLowerCase()] });
+    const both = makeCtx({ userTexts: [`${RECIPIENT.toLowerCase()} testnet`] });
     await transfer({}, both);
     expect(both.intents[0]?.provenance).toEqual({ source: 'both', appLabel: 'WhatsApp' });
   });
@@ -89,7 +89,7 @@ describe('prepare_native_transfer', () => {
   });
 
   it('insufficient balance including gas → INSUFFICIENT_BALANCE with numbers', async () => {
-    const ctx = makeCtx({ chain: mockChain({ balance: 200_000_000_000_000_000n }) });
+    const ctx = makeCtx({ chains: mockChains({ balance: 200_000_000_000_000_000n }) });
     const out = await transfer({}, ctx);
     expect(out).toMatchObject({ error: 'INSUFFICIENT_BALANCE' });
     expect(out.message).toContain('balance 0.2 MON');
@@ -98,7 +98,7 @@ describe('prepare_native_transfer', () => {
 
   it('contract recipient uses the Monad 7.5% gas-limit margin', async () => {
     const chain = mockChain({ code: '0x6080', gas: 30_000n });
-    const ctx = makeCtx({ chain });
+    const ctx = makeCtx({ chains: { 10143: chain, 143: chain } as never });
     await transfer({}, ctx);
     // 30_000 * 10_750 / 10_000 = 32_250. Charged on the limit, so the margin is the fee.
     expect(ctx.intents[0]).toMatchObject({ gasLimit: '32250', recipientIsContract: true });
@@ -108,7 +108,7 @@ describe('prepare_native_transfer', () => {
 
   it('gas-limit margin rounds up a fractional gas unit', async () => {
     const chain = mockChain({ code: '0x6080', gas: 10_001n });
-    const ctx = makeCtx({ chain });
+    const ctx = makeCtx({ chains: { 10143: chain, 143: chain } as never });
     await transfer({}, ctx);
     // (10_001 * 10_750 + 9_999) / 10_000 = 10_752, not the truncated 10_751.
     expect(ctx.intents[0]?.gasLimit).toBe('10752');
@@ -135,7 +135,7 @@ describe('prepare_native_transfer', () => {
   });
 
   it('RPC failure → RPC_ERROR, no intent', async () => {
-    const ctx = makeCtx({ chain: mockChain({ fail: true }) });
+    const ctx = makeCtx({ chains: mockChains({ fail: true }) });
     expect(await transfer({}, ctx)).toMatchObject({ error: 'RPC_ERROR' });
     expect(ctx.intents).toHaveLength(0);
   });
@@ -155,19 +155,19 @@ describe('other tools', () => {
     const ctx = makeCtx();
     expect(await runTool('get_wallet_balance', { address: OTHER }, ctx)).toEqual({
       address: WALLET,
-      balanceMon: '10',
-      balanceWei: '10000000000000000000',
+      testnet: { balanceMon: '10' },
+      mainnet: { balanceMon: '10' },
     });
-    expect(ctx.chain.getBalance).toHaveBeenCalledWith({ address: WALLET });
+    expect(ctx.chains[10143]?.getBalance).toHaveBeenCalledWith({ address: WALLET });
   });
 
   it('inspect_address returns details or INVALID_ADDRESS', async () => {
     expect(await runTool('inspect_address', { address: RECIPIENT.toLowerCase() }, makeCtx())).toEqual({
       valid: true,
       checksummed: RECIPIENT,
-      isContract: false,
-      txCount: 7,
-      balanceMon: '10',
+      primaryName: 'kartik.eth',
+      testnet: { isContract: false, txCount: 7, balanceMon: '10' },
+      mainnet: { isContract: false, txCount: 7, balanceMon: '10' },
     });
     expect(await runTool('inspect_address', { address: badChecksum(RECIPIENT) }, makeCtx())).toMatchObject({
       error: 'INVALID_ADDRESS',
@@ -177,13 +177,13 @@ describe('other tools', () => {
   it('get_tx_status: receipt → success, none → pending, bad hash → BAD_TOOL_INPUT', async () => {
     const done = `0x${'1'.repeat(64)}`;
     const pending = `0x${'0'.repeat(64)}`;
-    expect(await runTool('get_tx_status', { hash: done }, makeCtx())).toEqual({
+    expect(await runTool('get_tx_status', { hash: done, network: 'testnet' }, makeCtx())).toEqual({
       status: 'success',
       blockNumber: '42',
       explorerUrl: `https://testnet.monadvision.com/tx/${done}`,
     });
-    expect(await runTool('get_tx_status', { hash: pending }, makeCtx())).toMatchObject({ status: 'pending' });
-    expect(await runTool('get_tx_status', { hash: '0x12' }, makeCtx())).toMatchObject({ error: 'BAD_TOOL_INPUT' });
+    expect(await runTool('get_tx_status', { hash: pending, network: 'mainnet' }, makeCtx())).toMatchObject({ status: 'pending' });
+    expect(await runTool('get_tx_status', { hash: '0x12', network: 'testnet' }, makeCtx())).toMatchObject({ error: 'BAD_TOOL_INPUT' });
   });
 
   it('ask_user records a concrete clarification; >4 options rejected', async () => {
@@ -200,9 +200,10 @@ describe('other tools', () => {
     expect(ask?.description).toContain('Enter a different amount');
   });
 
-  it('exposes five tool definitions with object schemas', () => {
+  it('exposes six tool definitions with object schemas', () => {
     expect(TOOL_DEFS.map((t) => t.name).sort()).toEqual([
       'ask_user',
+      'assess_screen',
       'get_tx_status',
       'get_wallet_balance',
       'inspect_address',

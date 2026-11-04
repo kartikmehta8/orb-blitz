@@ -73,3 +73,17 @@ export function MonadMark({ size, color = colors.text }: { size: number; color?:
     </Svg>
   );
 }
+
+/**
+ * Orb glyph alone, for icon slots (tab bar).
+ * @param props.size Edge length in dp.
+ * @param props.color Fill colour.
+ * @returns An SVG element, hidden from screen readers.
+ */
+export function OrbGlyph({ size, color }: { size: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${ORB_GRID} ${ORB_GRID}`} {...A11Y_HIDDEN}>
+      <Path d={ORB_PATH} fill={color} fillRule="evenodd" />
+    </Svg>
+  );
+}

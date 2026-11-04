@@ -3,7 +3,7 @@
  * fading scrim, spring-in panel, grab handle, title row with a close button.
  * Back button, scrim tap and the close button all call `onClose`.
  */
-import { Feather } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, KeyboardAvoidingView, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,7 +74,7 @@ export function Sheet({
               style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
             >
               <View style={styles.closeDisc}>
-                <Feather name="x" size={18} color={colors.textSecondary} />
+                <Icon name="x" size={18} color={colors.textSecondary} />
               </View>
             </Pressable>
           </View>

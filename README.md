@@ -1,6 +1,8 @@
 # Orb
 
-**Pay anyone you see on your screen.** Orb is an Android wallet with a floating orb that sits over every app. Tap it in WhatsApp, X or Telegram, say "pay this", confirm with your fingerprint, and the MON settles on Monad testnet in about a second. You never leave the app you were in.
+**Pay anyone you see on your screen, and know when not to.** Orb is an Android wallet with a floating orb that sits over every app. Tap it in WhatsApp, X or Telegram, say "pay this", confirm with your fingerprint, and the MON settles on Monad (mainnet or testnet, whichever you name) in about a second. You never leave the app you were in.
+
+Tap it on a message you're not sure about and ask **"Is this safe?"**. Scam Shield answers **Looks safe**, **Be careful** or **Likely scam**, with the reasons. Every payment carries the same label. Orb can also pay **ENS names** (`kartik.eth`) it sees on screen.
 
 ```
 ┌──────────────────────────── Android phone ─────────────────────────────┐
@@ -15,12 +17,13 @@
                                 │ HTTPS (Privy access token)
                    Agent server (Node, Hono) → Claude tool loop
                    tools: balance · inspect_address · prepare_native_transfer
-                          · get_tx_status · ask_user   (read-only RPC)
+                          · get_tx_status · ask_user · assess_screen
+                   (read-only RPC: Monad mainnet + testnet, Ethereum mainnet for ENS)
 ```
 
 | Path | What |
 |---|---|
-| `app/` | Expo SDK 53 app: `app/` routes (Wallet, Activity, Orb, Profile tabs and the `/ask` sheet), `src/` logic and components, `modules/bubble-overlay/` Kotlin module, `plugins/` config plugin |
+| `app/` | Expo SDK 53 app: `app/` routes (Wallet, Ask, Orb, Profile tabs, Activity and Agents screens, and the `/ask` sheet), `src/` logic and components, `modules/bubble-overlay/` Kotlin module, `plugins/` config plugin |
 | `server/` | Agent server, MCP server and vitest tests. See [server/README.md](server/README.md) |
 
 ## Prerequisites
@@ -58,6 +61,60 @@ Release APK with no dev server: `pnpm android:release`.
 
 Also try "My balance", "What is this address?", two addresses on screen (you pick one), and stopping the server (the basic parser still prepares the payment).
 
+**Scam Shield.** Show `Dear customer, your account will be blocked. Install AnyDesk and pay a 10 MON processing fee to receive your refund` and tap **Is this safe?**. Orb answers **Likely scam** with each reason. Bank SMS that say "do not share your OTP" are not flagged.
+
+**ENS.** Show `send 0.1 MON to <name>.eth` and tap **Pay this**. The review card shows the name over the address it resolves to on Ethereum mainnet.
+
+## Scam Shield and ENS
+
+| Check | Where | Label |
+|---|---|---|
+| Screen asks for an OTP, PIN, password or recovery phrase; asks you to install an app or share your screen; asks you to pay to receive | Server and device (regex), plus the model | Raises toward **Likely scam** |
+| Urgency, impersonation (bank, support, police), prizes or guaranteed returns, shortened or disguised links | Server and device (regex), plus the model | **Be careful** |
+| Recipient matches the first and last 4 characters of an address you paid, or your own, but differs in the middle (address poisoning) | Device, from payment history | **Likely scam** |
+| ENS name now resolves to a different address than when you last paid it | Device, from payment history | **Be careful** |
+| Recipient is a contract; amount not on screen; parsed offline; ENS name has unusual characters | Shared `prepareTransfer` | **Be careful** |
+| ENS name is not the primary name of its address; first payment to this address | Shared `prepareTransfer` / device | Shown, label unchanged |
+
+- The model reports a level and signal codes from fixed lists through `assess_screen`. It can only raise the level above the regex floor in `risk.ts`, and the app shows its own copy for each code, so screen text cannot write "verified, safe to pay" into the verdict.
+- On **Likely scam**, the review card makes **Don't pay** the primary action and **Pay anyway** the secondary one.
+- ENS names resolve on Ethereum mainnet (`ENS_RPC_URL`, `EXPO_PUBLIC_ENS_RPC_URL`, default publicnode) and are paid on the Monad network you named at the resolved address. The phone resolves every name itself and ignores the server's address for it. A name must appear on screen or in your message, as a whole name (`pay.kartik.eth` does not count as `kartik.eth`).
+
+## Connect an AI agent (Claude Code, Codex)
+
+An agent can ask your wallet to pay. It can never pay by itself.
+
+```
+Agent (Claude Code, Codex, any MCP client)
+   │  MCP over HTTP, Authorization: Bearer orb_ak_…
+   ▼
+Orb server /mcp ── request_payment ──► pending request (agent and daily limits checked)
+   ▲                                        │  /inbox/wait long poll
+   │ get_payment_status (tx hash)           ▼
+Agent ◄────────── Phone: notification → review card + Scam Shield → fingerprint → phone signs
+```
+
+1. On the phone: **Profile → Agents → Connect an agent**. Pick a name and limits (per payment and per 24 hours, at most 10 MON). The key is shown once.
+2. Paste one of the commands on the computer where the agent runs:
+   - Claude Code: `claude mcp add-json orb '{"type":"http","url":"<server>/mcp","headers":{"Authorization":"Bearer orb_ak_…"}}'`
+   - Codex: `export ORB_AGENT_KEY=orb_ak_…` then `codex mcp add orb --url <server>/mcp --bearer-token-env-var ORB_AGENT_KEY`
+3. Ask the agent to "pay 0.1 MON to kartik.eth for API credits". The phone shows a notification. Tap it, check the card, confirm with your fingerprint. The agent sees `sent` and the transaction hash.
+
+Tools: `get_wallet_balance` (with the agent's remaining limit), `inspect_address`, `request_payment`, `get_payment_status` (can wait up to 25 s), `get_tx_status`.
+
+- Keys and inbox tokens are random 32-byte secrets stored only as SHA-256 hashes in `server/data/agents.json` (git-ignored; `AGENTS_FILE` to move it).
+- Limits are per agent, over a rolling 24 hours, and count requests still waiting, so an agent cannot queue several payments that together pass its limit. At most 3 requests can wait at once. The phone's own limits apply on top.
+- The phone rebuilds every request with the same checks as any payment (ENS, limits, balance, lookalike address) and shows the Scam Shield label.
+- **Disconnect** on the Agents screen kills the key and declines anything it left waiting.
+- Notifications come from the orb's background service, so they arrive only while the orb is on. Requests also wait on the Agents screen and expire after 10 minutes.
+- `<server>` must be reachable from the agent's computer. With the server on the same laptop, that is `http://localhost:8787`.
+
+## Voice
+
+- The mic button in the Orb sheet opens Android's speech dialog. What you say becomes your message (Hindi or English, per your phone's voice settings). No microphone permission needed: the system dialog records.
+- The speaker button on a review card or safety check reads it aloud: "Claude asks you to pay 0.2 MON to kartik.eth, for API credits. Looks safe. Confirm with your fingerprint." Turn on **Profile → Read aloud** to hear every new card automatically.
+- Voice never confirms a payment. The fingerprint does.
+
 ## Permissions
 
 | Permission | Why |
@@ -75,7 +132,7 @@ If you sideloaded the APK, enable accessibility via App info → ⋮ → **Allow
 - Every payment needs an explicit Confirm plus fingerprint or device PIN. Per-payment and daily limits (1 and 5 MON by default, 10 MON maximum) are enforced on the server and on the device.
 - The recipient must appear on screen or in your message, so the model cannot introduce addresses. Screen text is treated as untrusted input.
 - The screen is read only when you tap the orb. You can see and exclude the captured text, and captures live in memory for at most 120 seconds.
-- Monad testnet only (chain 10143), checked by the server, the app and the wallet before signing.
+- Monad mainnet (chain 143) and testnet (chain 10143). Every payment names its network in the user's own words ("mainnet" or "testnet"); with no mention Orb asks. The server and the phone both check this, and the wallet switches to that chain before signing. Spending limits cover both networks together.
 - The app sends the signed-in user's Privy access token (`Authorization: Bearer`). The server checks it as an ES256 JWT against `https://auth.privy.io/api/v1/apps/<PRIVY_APP_ID>/jwks.json` (`iss` `privy.io`, `aud` the app id, `exp`). There is no shared token in the APK. `AUTH_MODE=token` plus `AGENT_TOKEN` is a server-only dev escape hatch and is off unless set explicitly.
 - A valid token proves the Privy user id (`sub`). It does not yet prove that `wallet.address` in the request belongs to that user. That needs the Privy app secret on the server, which this build does not use.
 - Rate limit is 30 requests per minute per Privy user id (one shared bucket when `AUTH_MODE=token`).

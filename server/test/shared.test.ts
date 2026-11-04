@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url));
 
 describe('shared files', () => {
-  it.each(['intent.ts', 'fallbackParser.ts'])('server/src/%s equals app/src/%s', (name) => {
+  it.each(['intent.ts', 'fallbackParser.ts', 'risk.ts'])('server/src/%s equals app/src/%s', (name) => {
     expect(read(`../src/${name}`).equals(read(`../../app/src/${name}`))).toBe(true);
   });
 });

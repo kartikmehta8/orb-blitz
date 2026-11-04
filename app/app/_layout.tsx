@@ -1,8 +1,9 @@
 /**
- * @file Root layout: fonts (splash held until loaded), Privy with
- * the embedded EVM wallet on Monad testnet, orb lifecycle, and a two-route
- * stack: the opaque `(tabs)` group (Wallet, Activity, Orb, Profile, or the
- * sign-in flow while signed out) and the transparent `ask` sheet over other apps.
+ * @file Root layout: fonts (splash held until loaded), Privy with the
+ * embedded EVM wallet on Monad mainnet and testnet, orb lifecycle, and the
+ * stack: the opaque `(tabs)` group (Wallet, Ask, Orb, Profile, or the sign-in
+ * flow while signed out), the `agents` screen, and the transparent `ask` sheet
+ * over other apps.
  *
  * Deep links: expo-router maps `bubbleagent://ask?ctx=...` to `/ask` on both
  * cold start (initial URL, state `[ask]`) and warm start (URL event,
@@ -12,7 +13,7 @@
  */
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { RobotoMono_400Regular, RobotoMono_500Medium, RobotoMono_600SemiBold } from '@expo-google-fonts/roboto-mono';
-import { Feather } from '@expo/vector-icons';
+import { Icon } from '../src/components/Icon';
 import { PrivyProvider } from '@privy-io/expo';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -22,7 +23,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useBubbleLifecycle } from '../src/bubble';
 import { Card, Text } from '../src/components/ui';
-import { config, monadTestnet } from '../src/config';
+import { config, monadChains } from '../src/config';
 import { colors, radius, space } from '../src/theme';
 
 void SplashScreen.preventAutoHideAsync();
@@ -59,13 +60,14 @@ export default function RootLayout() {
         <PrivyProvider
           appId={config.privyAppId}
           clientId={config.privyClientId}
-          supportedChains={[monadTestnet]}
+          supportedChains={[monadChains[10143], monadChains[143]]}
           config={{ embedded: { ethereum: { createOnLogin: 'users-without-wallets' } } }}
         >
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: colors.canvas } }} />
             {/* The sheet animates itself (scrim fade + spring), so the screen transition is off. */}
             <Stack.Screen name="ask" options={{ contentStyle: { backgroundColor: 'transparent' }, animation: 'none' }} />
+            <Stack.Screen name="agents" options={{ contentStyle: { backgroundColor: colors.canvas } }} />
           </Stack>
         </PrivyProvider>
       ) : (
@@ -84,7 +86,7 @@ function ConfigMissing() {
     <View style={styles.missing}>
       <Card style={styles.card}>
         <View style={styles.icon}>
-          <Feather name="settings" size={20} color={colors.primary} />
+          <Icon name="settings" size={20} color={colors.primary} />
         </View>
         <Text variant="headline">Almost there</Text>
         <Text variant="callout" color="textSecondary">

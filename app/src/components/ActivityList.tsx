@@ -5,11 +5,13 @@
  */
 import { Linking, StyleSheet, View } from 'react-native';
 import { txUrl } from '../config';
-import { shortAddress } from '../intent';
+import { MAINNET_CHAIN_ID, shortAddress } from '../intent';
 import type { PendingStatus } from '../pendingTx';
 import type { ActivityTx } from '../storage';
 import { colors, radius, space } from '../theme';
+import { MonadMark } from './BrandMark';
 import { displayMemo, monValue, timeAgo } from './format';
+import { Icon } from './Icon';
 import { Button, Card, ListRow, Pill, Text, type Tone } from './ui';
 
 type RowStatus = ActivityTx['status'] | 'pending' | 'unknown';
@@ -30,9 +32,21 @@ const STATUS: Record<RowStatus, { verb: string; label: string; tone: Extract<Ton
  */
 function toRows(items: ActivityTx[], pending: PendingStatus): Row[] {
   if (pending.kind !== 'pending' && pending.kind !== 'unknown') return items;
-  const { hash, to, amountWei, sentAt, memo } = pending.tx;
+  const { hash, to, amountWei, sentAt, memo, chainId, ensName } = pending.tx;
   if (items.some((t) => t.hash === hash)) return items;
-  return [{ hash, to, amountWei, at: sentAt, status: pending.kind, ...(memo ? { memo } : {}) }, ...items];
+  return [
+    {
+      hash,
+      to,
+      amountWei,
+      at: sentAt,
+      status: pending.kind,
+      ...(memo ? { memo } : {}),
+      ...(chainId ? { chainId } : {}),
+      ...(ensName ? { ensName } : {}),
+    },
+    ...items,
+  ];
 }
 
 /**
@@ -43,26 +57,34 @@ function toRows(items: ActivityTx[], pending: PendingStatus): Row[] {
  */
 function ActivityRow({ row, divider }: { row: Row; divider: boolean }) {
   const s = STATUS[row.status];
-  const amount = `−${monValue(BigInt(row.amountWei), 6)} MON`;
+  const value = `−${monValue(BigInt(row.amountWei), 4)}`;
+  const amount = `${value} MON`;
   const when = timeAgo(row.at);
-  const who = shortAddress(row.to);
+  const who = row.ensName ?? shortAddress(row.to);
+  const network = row.chainId === MAINNET_CHAIN_ID ? 'Mainnet' : 'Testnet';
   const memo = displayMemo(row.memo);
-  const label = [s.verb + ' ' + who, memo, amount, when, s.label].filter(Boolean).join(', ');
+  const label = [s.verb + ' ' + who, memo, amount, network, when, s.label].filter(Boolean).join(', ');
   return (
     <ListRow
-      icon="arrow-up-right"
-      tone={s.tone}
+      leading={
+        <View style={[styles.leading, row.status === 'failed' && styles.leadingFailed]}>
+          <Icon name={row.status === 'failed' ? 'x' : 'arrow-up-right'} size={18} color={row.status === 'failed' ? colors.danger : colors.text} weight="bold" />
+        </View>
+      }
       title={`${s.verb} ${who}`}
       note={memo ?? undefined}
-      subtitle={`${when} · ${s.label}`}
+      subtitle={`${network} · ${when}`}
       divider={divider}
       accessibilityLabel={`${label}. Opens explorer.`}
-      onPress={() => void Linking.openURL(txUrl(row.hash))}
+      onPress={() => void Linking.openURL(txUrl(row.hash, row.chainId))}
       trailing={
         <View style={styles.trailing}>
-          <Text variant="amount" color={row.status === 'confirmed' ? 'text' : 'textTertiary'}>
-            {amount}
-          </Text>
+          <View style={styles.amount}>
+            <Text variant="bodyStrong" color={row.status === 'confirmed' ? 'text' : 'textTertiary'} style={styles.tabular}>
+              {value}
+            </Text>
+            <MonadMark size={13} color={row.status === 'confirmed' ? colors.text : colors.textTertiary} />
+          </View>
           {row.status !== 'confirmed' ? <Pill label={s.label} tone={s.tone} /> : null}
         </View>
       }
@@ -232,6 +254,10 @@ const styles = StyleSheet.create({
   list: { paddingVertical: space.xs },
   flex: { flex: 1 },
   trailing: { alignItems: 'flex-end', gap: space.xs },
+  amount: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  tabular: { fontVariant: ['tabular-nums'] },
+  leading: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  leadingFailed: { backgroundColor: colors.dangerSoft },
   empty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xxl, paddingHorizontal: space.xxl },
   copy: { alignSelf: 'stretch', gap: space.sm },
   emptyAction: { marginTop: space.sm, alignSelf: 'stretch' },

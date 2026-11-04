@@ -1,7 +1,7 @@
 /**
- * @file HTTP entry point: `GET /health` and `POST /v1/agent` with
- * bearer auth, rate limiting, body limit, zod validation and one log line per
- * request. Run directly to start the server; tests import `createApp`.
+ * @file HTTP entry point: `GET /health`, `POST /v1/agent` and the connected-agent
+ * routes (`/mcp`, `/inbox/wait`, `/v1/agents`, `/v1/requests`) with bearer auth,
+ * rate limiting, body limit, zod validation and one log line per request. Run directly to start the server; tests import `createApp`.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { serve } from '@hono/node-server';
@@ -12,9 +12,11 @@ import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { anthropicCreateMessage, runAgent, type AgentDeps } from './agent';
+import { mountAgentRoutes } from './agents/routes';
+import { AgentStore } from './agents/store';
 import { createPrivyAccessVerifier, loadAuthConfig, type AuthConfig } from './auth';
-import { createChainClient, DEFAULT_RPC_URL } from './chain';
-import { CHAIN_ID } from './intent';
+import { createChainClients, createEnsClient, DEFAULT_ENS_RPC_URL } from './chain';
+import { CHAIN_IDS } from './intent';
 import { AgentRequestSchema } from './schemas';
 
 const BODY_LIMIT_BYTES = 32 * 1024;
@@ -28,10 +30,12 @@ export type AppDeps = AgentDeps & {
   now?: () => number;
   /** Receives one JSON line per request. */
   log?: (line: string) => void;
+  /** Connected agents and their requests; defaults to memory only. */
+  agents?: AgentStore;
 };
 
-/** Hono context variables: safe fields for the request log line. */
-type Env = { Variables: { log: Record<string, unknown> } };
+/** Hono context variables: safe fields for the request log line, and the caller's Privy user id. */
+type Env = { Variables: { log: Record<string, unknown>; userId: string } };
 
 const sha256 = (s: string): Buffer => createHash('sha256').update(s).digest();
 
@@ -69,14 +73,16 @@ export function createApp(deps: AppDeps): Hono<Env> {
 
   const app = new Hono<Env>();
 
-  app.get('/health', (c) => c.json({ ok: true, chainId: CHAIN_ID, model: deps.model }));
+  app.get('/health', (c) => c.json({ ok: true, chainIds: CHAIN_IDS, model: deps.model }));
 
   // One log line per API request, whatever the outcome. Handlers add safe fields via `c.set('log', …)`.
-  app.use('/v1/*', async (c, next) => {
-    const started = now();
-    await next();
-    log(JSON.stringify({ path: c.req.path, status: c.res.status, ms: now() - started, ...c.get('log') }));
-  });
+  for (const path of ['/v1/*', '/mcp', '/inbox/*']) {
+    app.use(path, async (c, next) => {
+      const started = now();
+      await next();
+      log(JSON.stringify({ path: c.req.path, status: c.res.status, ms: now() - started, ...c.get('log') }));
+    });
+  }
 
   app.use('/v1/*', async (c, next) => {
     const token = /^Bearer\s+(\S+)$/i.exec(c.req.header('authorization') ?? '')?.[1];
@@ -94,13 +100,13 @@ export function createApp(deps: AppDeps): Hono<Env> {
       }
     }
     if (rateLimited(key)) return c.json({ error: 'RATE_LIMITED' }, 429);
+    c.set('userId', key);
     return next();
   });
 
-  app.use(
-    '/v1/*',
-    bodyLimit({ maxSize: BODY_LIMIT_BYTES, onError: (c) => c.json({ error: 'PAYLOAD_TOO_LARGE' }, 413) }),
-  );
+  for (const path of ['/v1/*', '/mcp']) {
+    app.use(path, bodyLimit({ maxSize: BODY_LIMIT_BYTES, onError: (c) => c.json({ error: 'PAYLOAD_TOO_LARGE' }, 413) }));
+  }
 
   app.post('/v1/agent', async (c) => {
     const body: unknown = await c.req.json().catch(() => undefined);
@@ -123,6 +129,8 @@ export function createApp(deps: AppDeps): Hono<Env> {
     });
     return c.json(response);
   });
+
+  mountAgentRoutes(app, { store: deps.agents ?? new AgentStore(null, now), chains: deps.chains, ens: deps.ens, rateLimited });
 
   app.onError((err, c) => {
     c.set('log', { errors: [err.name] });
@@ -151,11 +159,13 @@ function main(): void {
   const app = createApp({
     auth,
     model,
-    chain: createChainClient(env.MONAD_RPC_URL || DEFAULT_RPC_URL),
+    chains: createChainClients(env),
+    ens: createEnsClient(env.ENS_RPC_URL || DEFAULT_ENS_RPC_URL),
     createMessage: apiKey ? anthropicCreateMessage(new Anthropic({ apiKey, maxRetries: 1 })) : null,
+    agents: new AgentStore(env.AGENTS_FILE || 'data/agents.json'),
   });
   const port = Number(env.PORT) || 8787;
-  serve({ fetch: app.fetch, port }, () => console.log(`Orb agent server on :${port} (model ${model}, chain ${CHAIN_ID})`));
+  serve({ fetch: app.fetch, port }, () => console.log(`Orb agent server on :${port} (model ${model}, chains ${CHAIN_IDS.join(', ')})`));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

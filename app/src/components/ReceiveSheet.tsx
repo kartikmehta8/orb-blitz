@@ -30,7 +30,7 @@ export function ReceiveSheet({ address, visible, onClose }: { address: Address; 
   return (
     <Sheet visible={visible} onClose={onClose} title="Receive MON">
       <View style={styles.body}>
-        <Pill label="Monad testnet only" tone="primary" dot />
+        <Pill label="Monad mainnet and testnet" tone="primary" dot />
         <View style={styles.qrFrame} accessible accessibilityRole="image" accessibilityLabel="QR code of your wallet address">
           <QRCodeStyled
             data={address}
@@ -49,7 +49,7 @@ export function ReceiveSheet({ address, visible, onClose }: { address: Address; 
           <AddressText address={address} align="center" />
         </View>
         <Text variant="caption" color="textSecondary" align="center">
-          Only send MON on Monad testnet to this address.
+          Only send MON on Monad to this address. The same address works on mainnet and testnet.
         </Text>
       </View>
       <View style={styles.actions}>

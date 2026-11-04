@@ -44,6 +44,13 @@ export interface BubbleOverlayApi {
   setOrbState(state: 'idle' | 'capturing' | 'thinking' | 'success' | 'error'): void;
   /** `moveTaskToBack(true)` on the current activity. */
   minimizeApp(): void;
+  /**
+   * Stores the server URL and inbox token for agent payment notifications and
+   * wakes the orb's listener. Notifications arrive only while the orb runs.
+   */
+  setInbox(url: string, token: string): void;
+  /** Opens the system speech dialog. Resolves with what was said, or null if cancelled. */
+  listen(): Promise<string | null>;
 }
 
 export const BubbleOverlay: BubbleOverlayApi | null =

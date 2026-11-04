@@ -3,13 +3,17 @@
  * `tools/index.ts` so tool modules don't import the registry that imports them.
  */
 import type { z } from 'zod';
-import type { ChainClient } from '../chain';
-import type { Intent, ScreenContextInput, TransferErrorCode } from '../intent';
+import type { ChainClients } from '../chain';
+import type { EnsReader, Intent, ScreenContextInput, TransferErrorCode } from '../intent';
+import type { Assessment } from '../risk';
 import type { Clarification } from '../schemas';
 
 /** Per-request state the tools read and write. The model can only reach it through tool inputs. */
 export type ToolCtx = {
-  chain: ChainClient;
+  /** Monad testnet and mainnet. A payment uses the network the user named. */
+  chains: ChainClients;
+  /** Ethereum mainnet ENS reads. */
+  ens: EnsReader;
   /** The user's own wallet (checksummed); the model cannot substitute another. */
   wallet: `0x${string}`;
   perTxMon: string;
@@ -21,10 +25,12 @@ export type ToolCtx = {
   intents: Intent[];
   /** Set by `ask_user`; ends the loop. */
   clarification: Clarification | null;
+  /** Set by `assess_screen`, already merged with the deterministic floor. */
+  assessment: Assessment | null;
 };
 
 /** Error codes a tool can return: transfer validation codes plus dispatcher codes. */
-type ToolErrorCode = TransferErrorCode | 'BAD_TOOL_INPUT' | 'TOO_MANY_INTENTS';
+type ToolErrorCode = TransferErrorCode | 'BAD_TOOL_INPUT' | 'TOO_MANY_INTENTS' | 'NETWORK_UNCLEAR';
 /** JSON object returned to the model. Errors carry `{ error, message }`. */
 export type ToolOutput = Record<string, unknown>;
 

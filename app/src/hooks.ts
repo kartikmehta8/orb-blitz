@@ -12,7 +12,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Address } from 'viem';
 import { registerAccessTokenProvider } from './accessToken';
-import { publicClient } from './chain';
+import { clientFor, ensClient } from './chain';
+import type { ChainId } from './intent';
 import { OrbApiError, toOrbApiError } from './errors';
 import { toChecksumAddress } from './intent';
 import { getOrbState, subscribeOrbState } from './orbBridge';
@@ -47,11 +48,12 @@ export function useWallet(): WalletState {
 }
 
 /**
- * MON balance of an address, fetched on change and on demand.
+ * MON balance of an address on one network, fetched on change and on demand.
  * @param address Wallet address, or null when signed out.
+ * @param chainId Network to read.
  * @returns Balance (null until loaded), load error flag and a refresh function.
  */
-export function useBalance(address: Address | null): {
+export function useBalance(address: Address | null, chainId: ChainId): {
   balance: bigint | null;
   error: boolean;
   refresh: () => Promise<void>;
@@ -67,16 +69,17 @@ export function useBalance(address: Address | null): {
       return;
     }
     try {
-      const value = await publicClient.getBalance({ address });
+      const value = await clientFor(chainId).getBalance({ address });
       if (call !== latest.current) return;
       setBalance(value);
       setError(false);
     } catch {
       if (call === latest.current) setError(true);
     }
-  }, [address]);
+  }, [address, chainId]);
 
   useEffect(() => {
+    setBalance(null);
     void refresh();
   }, [refresh]);
 
@@ -110,7 +113,7 @@ export function usePendingTx(): PendingTxState {
 
   const recheck = useCallback(async () => {
     try {
-      const status = await checkPending(publicClient);
+      const status = await checkPending(clientFor);
       const next = reducePendingView(viewRef.current, { type: 'ok', status });
       viewRef.current = next;
       setView(next);
@@ -138,4 +141,22 @@ export function useOrbState(): OrbState {
   const [state, setState] = useState<OrbState>(getOrbState);
   useEffect(() => subscribeOrbState(setState), []);
   return state;
+}
+
+/**
+ * The wallet's verified primary ENS name, looked up once per address on Ethereum mainnet.
+ * @param address Wallet address, or null.
+ * @returns The name, or null when there is none or the lookup failed.
+ */
+export function usePrimaryName(address: Address | null): string | null {
+  const [name, setName] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setName(null);
+    if (address) void ensClient.getEnsName({ address }).then((n) => alive && setName(n), () => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [address]);
+  return name;
 }

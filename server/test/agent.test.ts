@@ -8,14 +8,14 @@ import { clampReply, runAgent, type CreateMessage } from '../src/agent';
 import { shortAddress } from '../src/intent';
 import { buildMessages, SYSTEM_PROMPT } from '../src/prompt';
 import { AgentResponseSchema } from '../src/schemas';
-import { makeRequest, mockChain, msg, OTHER, RECIPIENT, scripted } from './helpers';
+import { makeRequest, mockChains, mockEns, msg, OTHER, RECIPIENT, scripted } from './helpers';
 
 const prepare = (to: string, amount_mon: string) =>
   ({ type: 'tool_use', name: 'prepare_native_transfer', input: { to, amount_mon, reason: 'r' } }) as const;
 const text = (t: string) => ({ type: 'text', text: t }) as const;
 
 const run = (createMessage: CreateMessage | null, req = makeRequest(), deadlineMs?: number) =>
-  runAgent(req, { createMessage, chain: mockChain(), model: 'test-model', deadlineMs });
+  runAgent(req, { createMessage, chains: mockChains(), ens: mockEns(), model: 'test-model', deadlineMs });
 
 /** Tool results the loop sent back on the given call. */
 const toolResultsOf = (spy: ReturnType<typeof scripted>, call: number) => {
@@ -38,7 +38,7 @@ describe('runAgent tool loop', () => {
 
     const [body, options] = model.mock.calls[0] ?? [];
     expect(body).toMatchObject({ model: 'test-model', system: SYSTEM_PROMPT });
-    expect(body?.tools).toHaveLength(5);
+    expect(body?.tools).toHaveLength(6);
     expect(options?.timeout).toBe(15_000);
     expect(toolResultsOf(model, 1)[0]).toMatchObject({ tool_use_id: 'toolu_1', is_error: false });
   });
@@ -384,7 +384,7 @@ describe('runAgent tool loop', () => {
 
   it('prompt injection on screen → zero intents (model obeys, caps block it)', async () => {
     const req = makeRequest({
-      messages: [{ role: 'user', text: "what's this?" }],
+      messages: [{ role: 'user', text: "what's this? (testnet)" }],
       context: {
         source: 'screen',
         appLabel: 'Telegram',
@@ -409,7 +409,7 @@ describe('runAgent fallback', () => {
     expect(response.intents).toHaveLength(1);
     expect(response.intents[0]).toMatchObject({ to: RECIPIENT, parsedBy: 'fallback' });
     expect(response.intents[0]?.warnings).toContain('PARSED_WITHOUT_AI');
-    expect(response.reply).toBe(`Using the basic parser: 0.2 MON to ${shortAddress(RECIPIENT)} is ready to confirm.`);
+    expect(response.reply).toBe(`Using the basic parser: 0.2 MON on Monad Testnet to ${shortAddress(RECIPIENT)} is ready to confirm.`);
     expect(errorCodes).toEqual(['LLM_ERROR']);
   });
 
@@ -437,7 +437,7 @@ describe('runAgent fallback', () => {
     const req = makeRequest({ context: { source: 'clipboard', appLabel: 'Clipboard', text: `1 MON ${RECIPIENT} ${OTHER}`, capturedAt: 0 } });
     const { response } = await run(null, req);
     expect(response.intents).toEqual([]);
-    expect(response.clarification).toEqual({ question: 'I see 2 addresses. Which one?', options: [RECIPIENT, OTHER] });
+    expect(response.clarification).toEqual({ question: 'I see 2 recipients. Which one?', options: [RECIPIENT, OTHER] });
   });
 
   it('fallback labels a name that sits on the same line as the address', async () => {
@@ -452,7 +452,7 @@ describe('runAgent fallback', () => {
     const { response } = await run(null, req);
     expect(response.meta.fallback).toBe(true);
     expect(response.clarification).toEqual({
-      question: 'I see 2 addresses. Which one?',
+      question: 'I see 2 recipients. Which one?',
       options: [RECIPIENT, OTHER],
       labels: ['Rahul', 'Priya'],
     });
@@ -480,6 +480,7 @@ describe('clarification schema', () => {
     requestId: 't',
     reply: 'Which address?',
     intents: [],
+    assessment: null,
     meta: { model: 'm', toolCalls: [], ms: 1, fallback: false },
   };
 
@@ -528,7 +529,7 @@ describe('prompt', () => {
   });
 
   it('no context → plain user text', () => {
-    expect(buildMessages(makeRequest({ context: null }))).toEqual([{ role: 'user', content: 'pay this' }]);
+    expect(buildMessages(makeRequest({ context: null }))).toEqual([{ role: 'user', content: 'pay this on testnet' }]);
   });
 
   it('tells the model that a chip is a full address or a concrete MON amount', () => {

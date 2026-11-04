@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { txUrl } from '../config';
 import type { OrbApiError } from '../errors';
-import { formatMon, shortAddress } from '../intent';
+import { formatMon, NETWORKS, shortAddress, TESTNET_CHAIN_ID } from '../intent';
 import type { PendingStatus } from '../pendingTx';
 import type { PendingPhase } from '../pendingView';
 import { colors, radius, space } from '../theme';
@@ -23,7 +23,7 @@ const TONES: Record<Tone, { bg: string; border: string; fg: 'text' | 'warning' |
 /**
  * Banner row: tinted icon tile, text and trailing actions.
  * @param props.tone Semantic tone.
- * @param props.icon Feather icon name.
+ * @param props.icon Icon name.
  * @param props.title Bold first line.
  * @param props.body Optional secondary line.
  * @param props.children Optional actions (small buttons), shown on the right.
@@ -135,7 +135,7 @@ export function PendingBanner({
         tone="warning"
         icon="clock"
         title={`Payment pending · ${formatMon(BigInt(status.tx.amountWei), 18)}`}
-        body={`To ${shortAddress(status.tx.to)}. Waiting for Monad testnet.`}
+        body={`To ${status.tx.ensName ?? shortAddress(status.tx.to)}. Waiting for ${NETWORKS[status.tx.chainId ?? TESTNET_CHAIN_ID].name}.`}
       >
         <Button size="sm" variant="secondary" label="Check" accessibilityLabel="Check payment again" onPress={onRetry} />
       </Banner>

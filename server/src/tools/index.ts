@@ -5,6 +5,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { askUser } from './askUser';
+import { assessScreen } from './assessScreen';
 import { getTxStatus } from './getTxStatus';
 import { getWalletBalance } from './getWalletBalance';
 import { inspectAddress } from './inspectAddress';
@@ -34,14 +35,14 @@ function entry<S extends z.ZodObject>(tool: Tool<S>): Entry {
         return await tool.run(ctx, parsed.data);
       } catch (e) {
         const msg = (e instanceof Error ? e.message : String(e)).split('\n')[0];
-        return toolError('RPC_ERROR', `Couldn't reach Monad testnet: ${msg.slice(0, 120)}`);
+        return toolError('RPC_ERROR', `Couldn't reach the network: ${msg.slice(0, 120)}`);
       }
     },
   };
 }
 
 const REGISTRY = new Map(
-  [getWalletBalance, inspectAddress, prepareNativeTransfer, getTxStatus, askUser].map((t) => [t.name, entry(t)]),
+  [getWalletBalance, inspectAddress, assessScreen, prepareNativeTransfer, getTxStatus, askUser].map((t) => [t.name, entry(t)]),
 );
 
 /** Tool definitions sent to the Messages API. */

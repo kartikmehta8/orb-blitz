@@ -5,7 +5,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type CryptoKey,
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createPrivyAccessVerifier, loadAuthConfig, privyJwksUrl, PRIVY_ISSUER } from '../src/auth';
 import { createApp } from '../src/index';
-import { mockChain } from './helpers';
+import { mockChains, mockEns } from './helpers';
 
 const APP_ID = 'cltestapp';
 const SUB = 'did:privy:user-1';
@@ -43,7 +43,7 @@ function app() {
   return createApp({
     auth: { mode: 'privy', appId: APP_ID, verify: createPrivyAccessVerifier(APP_ID, jwks) },
     model: 'test-model',
-    chain: mockChain(),
+    chains: mockChains(), ens: mockEns(),
     createMessage: null,
   });
 }

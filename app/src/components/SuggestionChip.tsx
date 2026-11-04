@@ -5,7 +5,7 @@
  * An option is either a full address or a MON amount. Address chips show an
  * optional label above a shortened address. Tapping still sends the raw option.
  */
-import { Feather } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { shortAddress } from '../intent';
@@ -77,7 +77,7 @@ export function SuggestionChip({
       }}
       style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
     >
-      {icon ? <Feather name={icon} size={16} color={colors.textSecondary} /> : null}
+      {icon ? <Icon name={icon} size={16} color={colors.textSecondary} /> : null}
       <View style={styles.text}>
         <Text variant={mono ? 'mono' : 'bodyStrong'}>{label}</Text>
         {detail ? (

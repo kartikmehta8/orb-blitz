@@ -3,12 +3,12 @@
  * Confirm/Cancel buttons once a payment is in flight or settled, with the
  * transaction hash and explorer link where one exists.
  */
-import { Feather } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, Linking, StyleSheet, View } from 'react-native';
 import { txUrl } from '../config';
 import type { ExecState } from '../execute';
-import { shortAddress } from '../intent';
+import { NETWORKS, shortAddress, type ChainId } from '../intent';
 import { colors, radius, space } from '../theme';
 import { easeOut, motion, useReduceMotion } from './motion';
 import { Button, Text, type IconName, type Tone } from './ui';
@@ -52,7 +52,7 @@ function StateBadge({ badge }: { badge: Badge }) {
   }
   return (
     <Animated.View style={[styles.badge, { backgroundColor: BADGE_BG[badge.tone], transform: [{ scale }] }]}>
-      <Feather name={badge.icon} size={26} color={colors[badge.tone]} />
+      <Icon name={badge.icon} size={26} color={colors[badge.tone]} />
     </Animated.View>
   );
 }
@@ -125,13 +125,15 @@ function Block({
 /**
  * In-flight and terminal states with explorer links.
  * @param props.state Execution state (renders nothing for idle/cancelled).
+ * @param props.chainId Network the payment is on, for the copy and the explorer link.
  * @param props.onCheckAgain Re-checks the receipt after a timeout.
  * @returns The status block, or null.
  */
-export function PaymentStatus({ state, onCheckAgain }: { state: ExecState; onCheckAgain: () => void }) {
+export function PaymentStatus({ state, chainId, onCheckAgain }: { state: ExecState; chainId: ChainId; onCheckAgain: () => void }) {
+  const network = NETWORKS[chainId].name;
   const hash = 'hash' in state ? state.hash : null;
   const explorer = hash ? (
-    <Button size="sm" variant="secondary" icon="external-link" label="View on explorer" onPress={() => void Linking.openURL(txUrl(hash))} />
+    <Button size="sm" variant="secondary" icon="external-link" label="View on explorer" onPress={() => void Linking.openURL(txUrl(hash, chainId))} />
   ) : null;
 
   switch (state.status) {
@@ -141,7 +143,7 @@ export function PaymentStatus({ state, onCheckAgain }: { state: ExecState; onChe
       return <Block badge="spinner" title="Signing and sending" detail="This stays on your phone until it is sent." />;
     case 'submitted':
       return (
-        <Block badge="spinner" title="Submitted" detail={shortAddress(state.hash)} note="Waiting for Monad testnet." mono>
+        <Block badge="spinner" title="Submitted" detail={shortAddress(state.hash)} note={`Waiting for ${network}.`} mono>
           {explorer}
         </Block>
       );
@@ -151,7 +153,7 @@ export function PaymentStatus({ state, onCheckAgain }: { state: ExecState; onChe
           badge={{ icon: 'check', tone: 'success' }}
           title={state.ms === null ? 'Confirmed' : `Confirmed in ${state.ms} ms`}
           detail={shortAddress(state.hash)}
-          note="Monad testnet included this payment."
+          note={`${network} included this payment.`}
           mono
           big
         >
@@ -169,7 +171,7 @@ export function PaymentStatus({ state, onCheckAgain }: { state: ExecState; onChe
         <Block
           badge={{ icon: 'clock', tone: 'warning' }}
           title="Still pending"
-          detail="Monad testnet has not confirmed this yet. You can check again."
+          detail={`${network} has not confirmed this yet. You can check again.`}
         >
           <Button size="sm" variant="primary" icon="refresh-cw" label="Check again" onPress={onCheckAgain} />
           {explorer}

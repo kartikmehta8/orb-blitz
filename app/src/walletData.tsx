@@ -11,6 +11,7 @@ import { AppState } from 'react-native';
 import type { Address } from 'viem';
 import { toOrbApiError, type OrbApiError } from './errors';
 import { useBalance, usePendingTx, useWallet } from './hooks';
+import { useViewNetwork } from './network';
 import { getLimitState, type LimitState } from './limits';
 import type { PendingStatus } from './pendingTx';
 import type { PendingPhase } from './pendingView';
@@ -50,7 +51,8 @@ const WalletDataContext = createContext<WalletData | null>(null);
  */
 export function WalletDataProvider({ children }: { children: ReactNode }) {
   const { address, email } = useWallet();
-  const { balance, error: balanceError, refresh: refreshBalance } = useBalance(address);
+  const [chainId] = useViewNetwork();
+  const { balance, error: balanceError, refresh: refreshBalance } = useBalance(address, chainId);
   const { status: pending, phase: pendingPhase, error: pendingError, recheck, retry } = usePendingTx();
   const [activity, setActivity] = useState<ActivityTx[] | null>(null);
   const [limits, setLimits] = useState<LimitState | null>(null);

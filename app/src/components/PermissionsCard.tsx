@@ -4,9 +4,9 @@
  * Progress header, one row per permission with a tinted icon and either a
  * green check or an Allow/Fix button, and a collapsible restricted-settings
  * hint. Collapses to one "All set" row once everything is granted. Overlay is
- * required; the rest are recommended. Also exports the OEM autostart tip.
+ * required; the rest are recommended.
  */
-import { Feather } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { BubbleOverlay } from '../../modules/bubble-overlay';
@@ -64,8 +64,14 @@ const ROWS: RowSpec[] = [
   },
 ];
 
-const OEM_TIP =
-  "Enable Autostart and 'Display pop-up windows while running in background' in App info → Other permissions.";
+
+/** Steps to lift Android's restricted-settings block on the accessibility switch. */
+const RESTRICTED_STEPS = [
+  'Open App info for Orb',
+  'Tap ⋮ in the top-right corner',
+  'Tap Allow restricted settings',
+  'Come back and turn on Orb screen reader',
+];
 
 /**
  * Subtle expandable info row.
@@ -84,28 +90,14 @@ function Hint({ label, children }: { label: string; children: ReactNode }) {
         onPress={() => setOpen((o) => !o)}
         style={({ pressed }) => [styles.hintToggle, pressed && styles.pressed]}
       >
-        <Feather name="info" size={14} color={colors.textTertiary} />
-        <Text variant="captionStrong" color="textSecondary" style={styles.flex}>
+        <Icon name="help-circle" size={18} color={colors.text} />
+        <Text variant="bodyStrong" style={styles.flex}>
           {label}
         </Text>
-        <Feather name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textTertiary} />
+        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
       </Pressable>
       {open ? <View style={styles.hintBody}>{children}</View> : null}
     </View>
-  );
-}
-
-/**
- * Collapsible autostart tip for OEM skins that kill background services.
- * @returns The disclosure row.
- */
-export function OemTip() {
-  return (
-    <Hint label="Xiaomi, Redmi, POCO, Realme, Oppo or Vivo?">
-      <Text variant="caption" color="textSecondary">
-        {OEM_TIP}
-      </Text>
-    </Hint>
   );
 }
 
@@ -159,7 +151,7 @@ export function PermissionsCard({ status, refresh }: { status: PermissionStatus 
       subtitle="The orb has everything it needs"
       accessibilityLabel={expanded ? 'All set. Hide permissions' : 'All set. Show permissions'}
       onPress={() => setExpanded((e) => !e)}
-      trailing={<Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />}
+      trailing={<Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textTertiary} />}
     />
   );
 
@@ -188,7 +180,7 @@ export function PermissionsCard({ status, refresh }: { status: PermissionStatus 
                   accessibilityLabel={`${row.title}. ${granted ? 'Granted' : row.missing}`}
                   trailing={
                     granted ? (
-                      <Feather name="check-circle" size={20} color={colors.success} accessibilityLabel="Granted" />
+                      <Icon name="check-circle" size={20} color={colors.success} accessibilityLabel="Granted" />
                     ) : (
                       <Button
                         label={row.action}
@@ -205,20 +197,21 @@ export function PermissionsCard({ status, refresh }: { status: PermissionStatus 
           : null}
         {accessibilityMissing ? (
           <View style={styles.hints}>
-            <Hint label="Screen reader switch greyed out?">
-              <Text variant="caption" color="textSecondary">
-                Android restricts it for apps installed from a file. Open App info, tap ⋮, then Allow restricted settings.
+            <Hint label="Can't turn on the screen reader?">
+              <Text variant="callout" color="textSecondary">
+                Android blocks it for apps installed outside the Play Store until you allow it once.
               </Text>
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="Open App info"
-                onPress={() => void Linking.openSettings()}
-                style={styles.link}
-              >
-                <Text variant="button" color="primaryInk">
-                  Open App info
-                </Text>
-              </Pressable>
+              {RESTRICTED_STEPS.map((step, i) => (
+                <View key={step} style={styles.step}>
+                  <View style={styles.stepNumber}>
+                    <Text variant="captionStrong">{i + 1}</Text>
+                  </View>
+                  <Text variant="callout" style={styles.flex}>
+                    {step}
+                  </Text>
+                </View>
+              ))}
+              <Button size="sm" variant="secondary" icon="external-link" label="Open App info" onPress={() => void Linking.openSettings()} />
             </Hint>
           </View>
         ) : null}
@@ -235,6 +228,14 @@ const styles = StyleSheet.create({
   hints: { paddingVertical: space.xs },
   hint: { borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   hintToggle: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: HIT, paddingHorizontal: space.md },
-  hintBody: { gap: space.sm, paddingHorizontal: space.md, paddingBottom: space.md, alignItems: 'flex-start' },
-  link: { minHeight: HIT, justifyContent: 'center' },
+  hintBody: { gap: space.md, paddingHorizontal: space.md, paddingBottom: space.md },
+  step: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
 });

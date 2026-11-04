@@ -1,22 +1,25 @@
 /**
- * @file Signed-in app shell: four bottom tabs (Wallet, Activity, Orb,
- * Profile) sharing one `WalletDataProvider`. Signed out, the full-screen
+ * @file Signed-in app shell: four bottom tabs (Wallet, Ask, Orb, Profile)
+ * sharing one `WalletDataProvider`. Activity is a hidden tab (no bar item),
+ * opened from Wallet and Profile, so it shares the same data. Signed out, the full-screen
  * sign-in flow renders instead, with no tab bar. Screens draw their own
  * headers, so navigator headers are off.
  */
-import { Feather } from '@expo/vector-icons';
+import { Icon } from '../../src/components/Icon';
 import { Tabs } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { OrbGlyph } from '../../src/components/BrandMark';
+import { FloatingTabBar } from '../../src/components/FloatingTabBar';
 import { SignIn } from '../../src/components/SignIn';
 import type { IconName } from '../../src/components/ui';
 import { useWallet } from '../../src/hooks';
-import { colors, fonts } from '../../src/theme';
+import { colors } from '../../src/theme';
 import { WalletDataProvider } from '../../src/walletData';
 
-const TABS: { name: string; title: string; icon: IconName }[] = [
+const TABS: { name: string; title: string; icon: IconName | 'orb' }[] = [
   { name: 'index', title: 'Wallet', icon: 'credit-card' },
-  { name: 'activity', title: 'Activity', icon: 'clock' },
-  { name: 'bubble', title: 'Orb', icon: 'circle' },
+  { name: 'chat', title: 'Ask', icon: 'message-circle' },
+  { name: 'bubble', title: 'Orb', icon: 'orb' },
   { name: 'profile', title: 'Profile', icon: 'user' },
 ];
 
@@ -39,13 +42,12 @@ export default function TabsLayout() {
   return (
     <WalletDataProvider>
       <Tabs
+        tabBar={(props) => <FloatingTabBar {...props} visible={TABS.map((t) => t.name)} hiddenOn={['chat', 'activity']} />}
         screenOptions={{
           headerShown: false,
+          // Screens slide and fade into place when switching tabs.
+          animation: 'shift',
           sceneStyle: styles.scene,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textTertiary,
-          tabBarStyle: styles.tabBar,
-          tabBarLabelStyle: styles.label,
         }}
       >
         {TABS.map((tab) => (
@@ -55,10 +57,16 @@ export default function TabsLayout() {
             options={{
               title: tab.title,
               tabBarAccessibilityLabel: tab.title,
-              tabBarIcon: ({ color }) => <Feather name={tab.icon} size={22} color={color} />,
+              tabBarIcon: ({ color, focused }) =>
+                tab.icon === 'orb' ? (
+                  <OrbGlyph size={21} color={color} />
+                ) : (
+                  <Icon name={tab.icon} size={22} color={color} weight={focused ? 'fill' : 'regular'} />
+                ),
             }}
           />
         ))}
+        <Tabs.Screen name="activity" options={{ href: null, title: 'Activity' }} />
       </Tabs>
     </WalletDataProvider>
   );
@@ -67,12 +75,4 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas },
   scene: { backgroundColor: colors.canvas },
-  tabBar: {
-    backgroundColor: colors.surface,
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  label: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16 },
 });

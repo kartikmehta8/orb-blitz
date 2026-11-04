@@ -8,39 +8,75 @@
  * The only way an `Intent` is created is `prepareTransfer`, which enforces
  * address validity, provenance (the recipient must appear in the screen
  * context or a user message), amount format, spend caps and balance.
+ *
+ * A recipient may be an ENS name (`.eth`). Names resolve on Ethereum mainnet,
+ * where ENS lives; the payment itself settles on the chosen Monad network.
  */
 import { defineChain, formatEther, getAddress, parseEther, zeroAddress, type Address, type Chain, type PublicClient } from 'viem';
+import { normalize } from 'viem/ens';
 
-/** Monad testnet. The only chain this product ever touches. */
-export const CHAIN_ID = 10143 as const;
+/** Monad testnet: free test MON. */
+export const TESTNET_CHAIN_ID = 10143 as const;
+/** Monad mainnet: real MON. */
+export const MAINNET_CHAIN_ID = 143 as const;
+/** The two chains Orb pays on. */
+export type ChainId = typeof TESTNET_CHAIN_ID | typeof MAINNET_CHAIN_ID;
+export const CHAIN_IDS: readonly ChainId[] = [TESTNET_CHAIN_ID, MAINNET_CHAIN_ID];
+
 /**
- * Public testnet HTTP RPC.
- * @see https://docs.monad.xyz/developer-essentials/testnets
+ * Public RPC and MonadVision explorer per chain. Callers may substitute RPCs.
+ * @see https://docs.monad.xyz/developer-essentials/network-information
  */
-export const MONAD_TESTNET_RPC_URL = 'https://testnet-rpc.monad.xyz';
-/**
- * MonadVision explorer. The other listed explorer is Monadscan; links in this app use MonadVision.
- * @see https://docs.monad.xyz/developer-essentials/testnets
- */
-export const MONAD_TESTNET_EXPLORER_URL = 'https://testnet.monadvision.com';
-/** Native currency. A MON-gwei is 10^-9 MON, so MON has 18 decimals. */
+export const NETWORKS: Record<ChainId, { key: 'testnet' | 'mainnet'; name: string; rpcUrl: string; explorerUrl: string }> = {
+  [TESTNET_CHAIN_ID]: {
+    key: 'testnet',
+    name: 'Monad Testnet',
+    rpcUrl: 'https://testnet-rpc.monad.xyz',
+    explorerUrl: 'https://testnet.monadvision.com',
+  },
+  [MAINNET_CHAIN_ID]: { key: 'mainnet', name: 'Monad Mainnet', rpcUrl: 'https://rpc.monad.xyz', explorerUrl: 'https://monadvision.com' },
+};
+/** Native currency on both chains. A MON-gwei is 10^-9 MON, so MON has 18 decimals. */
 export const MONAD_NATIVE_CURRENCY = { name: 'MON', symbol: 'MON', decimals: 18 } as const;
 
+/** @returns True for a chain Orb pays on. */
+export const isChainId = (v: unknown): v is ChainId => v === TESTNET_CHAIN_ID || v === MAINNET_CHAIN_ID;
+
 /**
- * Monad testnet chain. Callers may substitute the RPC or explorer; id and currency stay fixed.
- * @param rpcUrl HTTP JSON-RPC URL.
+ * viem chain definition. Id and currency stay fixed; the RPC and explorer may be substituted.
+ * @param chainId Testnet or mainnet.
+ * @param rpcUrl HTTP JSON-RPC URL (default: the public one).
  * @param explorerUrl Explorer base URL, no trailing slash.
- * @returns The viem chain definition.
+ * @returns The chain.
  */
-export function monadTestnetChain(rpcUrl: string, explorerUrl: string): Chain {
+export function monadChain(chainId: ChainId, rpcUrl = NETWORKS[chainId].rpcUrl, explorerUrl = NETWORKS[chainId].explorerUrl): Chain {
   return defineChain({
-    id: CHAIN_ID,
-    name: 'Monad Testnet',
+    id: chainId,
+    name: NETWORKS[chainId].name,
     nativeCurrency: MONAD_NATIVE_CURRENCY,
     rpcUrls: { default: { http: [rpcUrl] } },
     blockExplorers: { default: { name: 'MonadVision', url: explorerUrl } },
-    testnet: true,
+    testnet: chainId === TESTNET_CHAIN_ID,
   });
+}
+
+const SAYS_MAINNET = /\bmain[\s-]?net\b/i;
+const SAYS_TESTNET = /\btest[\s-]?net\b/i;
+
+/**
+ * The network the user named in their own words, newest message first.
+ * Payments never default: with no mention, the caller must ask.
+ * A message that names both is ambiguous and skipped.
+ * @param userTexts User-authored messages, oldest first.
+ * @returns The chain, or null when the user has not said.
+ */
+export function networkMentioned(userTexts: readonly string[]): ChainId | null {
+  for (let i = userTexts.length - 1; i >= 0; i--) {
+    const main = SAYS_MAINNET.test(userTexts[i]);
+    const test = SAYS_TESTNET.test(userTexts[i]);
+    if (main !== test) return main ? MAINNET_CHAIN_ID : TESTNET_CHAIN_ID;
+  }
+  return null;
 }
 
 /** Intents expire five minutes after creation. */
@@ -60,8 +96,8 @@ function withMonadGasMargin(estimated: bigint): bigint {
 /** Max intents the agent may create per request. */
 export const MAX_INTENTS_PER_REQUEST = 3;
 
-/** Where captured context text came from. */
-export type ContextSource = 'screen' | 'clipboard';
+/** Where captured context text came from. `agent` is a request from a connected agent (MCP). */
+export type ContextSource = 'screen' | 'clipboard' | 'agent';
 /** Where the recipient address was found: context, a user message, or both. */
 export type ProvenanceSource = ContextSource | 'user' | 'both';
 
@@ -72,15 +108,28 @@ export type IntentWarning =
   | 'SELF_TRANSFER'
   | 'AMOUNT_NOT_IN_CONTEXT'
   | 'PARSED_WITHOUT_AI'
-  | 'CLOSE_TO_DAILY_LIMIT';
+  | 'CLOSE_TO_DAILY_LIMIT'
+  /** Device only: same first and last 4 hex characters as a past recipient, different middle. */
+  | 'LOOKALIKE_RECIPIENT'
+  /** The paid ENS name is not the primary name of the address it resolves to. */
+  | 'ENS_NOT_PRIMARY'
+  /** Device only: this name resolved to a different address when it was last paid. */
+  | 'ENS_ADDRESS_CHANGED'
+  /** The ENS name has characters outside a-z, 0-9, hyphen and dot, which can imitate other names. */
+  | 'ENS_UNUSUAL_CHARACTERS';
 
 /** A proposed native MON transfer. Never signed by the server. */
 export type Intent = {
   id: string;
   type: 'native_transfer';
-  chainId: typeof CHAIN_ID;
-  /** Checksummed recipient. */
+  /** Monad testnet (10143) or mainnet (143). Chosen by the user, never defaulted. */
+  chainId: ChainId;
+  /** Checksummed recipient. For an ENS payment, the address the name resolved to. */
   to: Address;
+  /** Normalized ENS name the user asked to pay, when the recipient was a name. */
+  ensName?: string;
+  /** The recipient address's verified primary ENS name, when it has one. */
+  primaryName?: string;
   /** Decimal wei string. */
   amountWei: string;
   /** e.g. "2 MON". */
@@ -105,6 +154,7 @@ export type Intent = {
 /** Hard failures from `prepareTransfer`; no intent is created. */
 export type TransferErrorCode =
   | 'INVALID_ADDRESS'
+  | 'ENS_NOT_FOUND'
   | 'ZERO_ADDRESS'
   | 'ADDRESS_NOT_IN_CONTEXT'
   | 'INVALID_AMOUNT'
@@ -122,6 +172,8 @@ export type ScreenContextInput = { source: ContextSource; appLabel: string; text
 /** Everything `prepareTransfer` needs. Amounts are MON decimal strings. */
 type TransferRequest = {
   id: string;
+  /** Network to pay on. `client` must be connected to this chain. */
+  chainId: ChainId;
   to: string;
   amountMon: string;
   wallet: Address;
@@ -138,6 +190,40 @@ type TransferRequest = {
 
 /** The read-only chain calls `prepareTransfer` uses. A viem PublicClient satisfies it. */
 export type ChainReader = Pick<PublicClient, 'getCode' | 'getBalance' | 'estimateGas' | 'estimateFeesPerGas'>;
+
+/** ENS reads on Ethereum mainnet. A viem mainnet PublicClient satisfies it. */
+export type EnsReader = Pick<PublicClient, 'getEnsAddress' | 'getEnsName'>;
+
+/** Public Ethereum mainnet RPC used for ENS when no other is configured. */
+export const ENS_RPC_URL = 'https://ethereum-rpc.publicnode.com';
+
+/** A whole `.eth` name with at least one label, e.g. "kartik.eth" or "pay.kartik.eth". */
+const ENS_NAME = /^[^\s.@/:]+(?:\.[^\s.@/:]+)*\.eth$/i;
+/** Labels made only of a-z, 0-9 and hyphens. Anything else can imitate another name. */
+const PLAIN_ENS_NAME = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.eth$/;
+
+/**
+ * Whether a recipient string is an ENS name rather than an address.
+ * @param raw Candidate, may contain zero-width characters.
+ * @returns True for "name.eth" shapes. Validity is checked by `normalize` later.
+ */
+export function isEnsName(raw: string): boolean {
+  const s = stripZeroWidth(raw).trim();
+  return s.length <= 255 && ENS_NAME.test(s);
+}
+
+/**
+ * ENSIP-15 normalization ("Kartik.ETH" becomes "kartik.eth").
+ * @param raw Candidate name.
+ * @returns The normalized name, or null when the name is not valid.
+ */
+export function normalizeEnsName(raw: string): string | null {
+  try {
+    return normalize(stripZeroWidth(raw).trim());
+  } catch {
+    return null;
+  }
+}
 
 const ZERO_WIDTH = /[​-‍﻿]/g;
 const MON_DECIMAL = /^\d+(\.\d{1,18})?$/;
@@ -242,6 +328,29 @@ function findProvenance(
 }
 
 /**
+ * Finds where an ENS name came from. Case-insensitive; the name must not be
+ * part of a longer name ("pay.kartik.eth" does not count as "kartik.eth").
+ * @param name Normalized name.
+ * @param context Captured screen or clipboard text, if any.
+ * @param userTexts User-authored messages.
+ * @returns The provenance source, or null if the name appears nowhere.
+ */
+function findNameProvenance(
+  name: string,
+  context: ScreenContextInput | null,
+  userTexts: string[],
+): ProvenanceSource | null {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const needle = new RegExp(`(^|[^a-z0-9.-])${escaped}(?![a-z0-9-])`);
+  const has = (t: string) => needle.test(stripZeroWidth(t).toLowerCase());
+  const inContext = !!context && has(context.text);
+  const inUser = userTexts.some(has);
+  if (inContext && inUser) return 'both';
+  if (inContext) return context.source;
+  return inUser ? 'user' : null;
+}
+
+/**
  * Whether the amount appears (numerically) anywhere in the given texts.
  * @param wei Amount to look for.
  * @param texts Context and user messages.
@@ -256,19 +365,29 @@ const fail = (error: TransferErrorCode, message: string): TransferError => ({ er
 
 /**
  * Validates a transfer request and builds an `Intent`. Checks run cheapest and
- * strictest first: address → provenance → amount → caps → chain state → balance.
+ * strictest first: address or name → provenance → amount → caps → ENS
+ * resolution → chain state → balance.
  * @param client Read-only chain access.
- * @param req The transfer request.
+ * @param req The transfer request. `to` is a 0x address or an ENS name.
+ * @param ens Mainnet ENS reads. Without it, names are refused and no primary name is looked up.
  * @returns The intent, or a `TransferError` whose `message` is user-facing copy.
  */
-export async function prepareTransfer(client: ChainReader, req: TransferRequest): Promise<Intent | TransferError> {
-  const to = toChecksumAddress(req.to);
-  if (!to) return fail('INVALID_ADDRESS', 'That is not a valid 0x address.');
-  if (to === zeroAddress) return fail('ZERO_ADDRESS', 'That is the zero address. Funds sent there are lost.');
+export async function prepareTransfer(
+  client: ChainReader,
+  req: TransferRequest,
+  ens?: EnsReader,
+): Promise<Intent | TransferError> {
+  const ensName = isEnsName(req.to) ? normalizeEnsName(req.to) : null;
+  if (isEnsName(req.to) && !ensName) return fail('INVALID_ADDRESS', 'That is not a valid ENS name.');
+  const address = ensName ? null : toChecksumAddress(req.to);
+  if (!ensName && !address) return fail('INVALID_ADDRESS', 'That is not a valid 0x address or ENS name.');
+  if (address === zeroAddress) return fail('ZERO_ADDRESS', 'That is the zero address. Funds sent there are lost.');
 
-  const source = findProvenance(to, req.context, req.userTexts);
+  const source = ensName
+    ? findNameProvenance(ensName, req.context, req.userTexts)
+    : findProvenance(address as Address, req.context, req.userTexts);
   if (!source) {
-    return fail('ADDRESS_NOT_IN_CONTEXT', 'I can only pay addresses that appear on your screen or in your message.');
+    return fail('ADDRESS_NOT_IN_CONTEXT', 'I can only pay addresses or names that appear on your screen or in your message.');
   }
 
   const amount = parseMon(req.amountMon);
@@ -281,11 +400,26 @@ export async function prepareTransfer(client: ChainReader, req: TransferRequest)
     return fail('OVER_DAILY_LIMIT', `That would exceed today's limit (${req.dailyRemainingMon} MON left).`);
   }
 
+  let to = address as Address;
+  if (ensName) {
+    if (!ens) return fail('RPC_ERROR', "Couldn't look up ENS names right now.");
+    let resolved: Address | null;
+    try {
+      resolved = await ens.getEnsAddress({ name: ensName });
+    } catch (e) {
+      return fail('RPC_ERROR', `Couldn't look up ${ensName}: ${(e as Error).message.split('\n')[0].slice(0, 120)}`);
+    }
+    if (!resolved || resolved === zeroAddress) return fail('ENS_NOT_FOUND', `${ensName} has no address set.`);
+    to = getAddress(resolved);
+  }
+
   try {
-    const [code, fees, balance] = await Promise.all([
+    const [code, fees, balance, primaryName] = await Promise.all([
       client.getCode({ address: to }),
       client.estimateFeesPerGas(),
       client.getBalance({ address: req.wallet }),
+      // Display only: a failed reverse lookup never blocks a payment.
+      ens ? ens.getEnsName({ address: to }).catch(() => null) : Promise.resolve(null),
     ]);
     const isContract = !!code && code !== '0x';
     const gasLimit = isContract
@@ -308,14 +442,18 @@ export async function prepareTransfer(client: ChainReader, req: TransferRequest)
     }
     if (req.parsedBy === 'fallback') warnings.push('PARSED_WITHOUT_AI');
     if (amount * 5n >= remaining * 4n) warnings.push('CLOSE_TO_DAILY_LIMIT');
+    if (ensName && primaryName !== ensName) warnings.push('ENS_NOT_PRIMARY');
+    if (ensName && !PLAIN_ENS_NAME.test(ensName)) warnings.push('ENS_UNUSUAL_CHARACTERS');
 
     const now = req.now ?? Date.now();
     const memo = sanitizeMemo(req.memo);
     return {
       id: req.id,
       type: 'native_transfer',
-      chainId: CHAIN_ID,
+      chainId: req.chainId,
       to,
+      ...(ensName ? { ensName } : {}),
+      ...(primaryName ? { primaryName } : {}),
       amountWei: amount.toString(),
       amountDisplay: formatMon(amount, 18),
       gasLimit: gasLimit.toString(),
@@ -330,7 +468,7 @@ export async function prepareTransfer(client: ChainReader, req: TransferRequest)
       ...(memo ? { memo } : {}),
     };
   } catch (e) {
-    return fail('RPC_ERROR', `Couldn't reach Monad testnet: ${(e as Error).message.split('\n')[0].slice(0, 120)}`);
+    return fail('RPC_ERROR', `Couldn't reach ${NETWORKS[req.chainId].name}: ${(e as Error).message.split('\n')[0].slice(0, 120)}`);
   }
 }
 

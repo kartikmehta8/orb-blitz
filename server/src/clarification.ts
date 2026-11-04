@@ -6,8 +6,16 @@
  * this, but it also returns names, free-text prompts, and amounts over the cap.
  */
 import { formatEther } from 'viem';
-import { amountsWithinCap, defaultAmountOptions, labelField, labelsForOptions, MAX_LABEL_CHARS, parseFallback } from './fallbackParser';
-import { parseMon, shortAddress, stripZeroWidth, toChecksumAddress } from './intent';
+import {
+  amountsWithinCap,
+  defaultAmountOptions,
+  labelField,
+  labelsForOptions,
+  MAX_LABEL_CHARS,
+  NETWORK_OPTIONS,
+  parseFallback,
+} from './fallbackParser';
+import { isEnsName, normalizeEnsName, parseMon, shortAddress, stripZeroWidth, toChecksumAddress } from './intent';
 import type { Clarification } from './schemas';
 
 const ADDRESS_OPTION = /^0x[a-fA-F0-9]{40}$/;
@@ -140,6 +148,8 @@ function concreteOptions(
  * @returns The chip value, or null.
  */
 function concreteOption(option: string, texts: string[], capMon: string): string | null {
+  const network = NETWORK_OPTIONS.find((n) => n.toLowerCase() === option.toLowerCase());
+  if (network) return network;
   if (ADDRESS_OPTION.test(option)) {
     // Same acceptance rule as a transfer: mixed case must be a real checksum.
     if (!toChecksumAddress(option)) return null;
@@ -147,15 +157,20 @@ function concreteOption(option: string, texts: string[], capMon: string): string
     if (!addressAppears(option, texts)) return null;
     return option;
   }
+  if (isEnsName(option)) {
+    const name = normalizeEnsName(option);
+    // Same rule as an address: tapping an invented name would make it the user's own words.
+    return name && nameAppears(name, texts) ? name : null;
+  }
   const decimal = AMOUNT_OPTION.exec(option)?.[1];
   if (!decimal) return null;
   const [kept] = amountsWithinCap([decimal], capMon);
   return kept ? `${kept} MON` : null;
 }
 
-/** Case-insensitive for addresses, by value for amounts, so "0.5" and "0.5 MON" are one chip. */
+/** Case-insensitive for addresses and names, by value for amounts, so "0.5" and "0.5 MON" are one chip. */
 function optionKey(option: string): string {
-  if (ADDRESS_OPTION.test(option)) return `a:${option.toLowerCase()}`;
+  if (ADDRESS_OPTION.test(option) || isEnsName(option)) return `a:${option.toLowerCase()}`;
   const decimal = /^(\d+(?:\.\d{1,18})?)/.exec(option)?.[1] ?? option;
   return `m:${(parseMon(decimal) ?? decimal).toString()}`;
 }
@@ -168,6 +183,18 @@ function optionKey(option: string): string {
  */
 function addressAppears(address: string, texts: string[]): boolean {
   const needle = new RegExp(`${address.toLowerCase()}(?![0-9a-f])`);
+  return texts.some((text) => needle.test(stripZeroWidth(text).toLowerCase()));
+}
+
+/**
+ * Whether a normalized ENS name occurs on its own, not inside a longer name.
+ * @param name Normalized name.
+ * @param texts Context and user messages.
+ * @returns True when the name appears in any text.
+ */
+function nameAppears(name: string, texts: string[]): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const needle = new RegExp(`(^|[^a-z0-9.-])${escaped}(?![a-z0-9-])`);
   return texts.some((text) => needle.test(stripZeroWidth(text).toLowerCase()));
 }
 
