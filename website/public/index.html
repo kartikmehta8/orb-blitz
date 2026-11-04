@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <title>Orb — Your screen. Your wallet. Your call.</title>
+    <meta
+      name="description"
+      content="An Android wallet for screen-context MON payments, Scam Shield and agent payment requests. Explore Orb and download the Android preview."
+    />
+    <link rel="canonical" href="__SITE_URL__/" />
+    <meta
+      property="og:title"
+      content="Orb — Your screen. Your wallet. Your call."
+    />
+    <meta
+      property="og:description"
+      content="An Android wallet for screen-context MON payments, Scam Shield and agent payment requests. Explore Orb and download the Android preview."
+    />
+    <meta property="og:image" content="__SITE_URL__/assets/orb-social.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/assets/orb-mark.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/assets/inter-regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/assets/interactions.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a href="/" class="brand" aria-label="Orb home"
+        ><span class="brand-mark" aria-hidden="true"
+          ><img src="/assets/orb-glyph.svg" alt="" /></span
+        ><span>orb</span></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="/#playground">Explore Orb</a
+        ><a href="/#how-it-works">How it works</a><a href="/#faq">FAQ</a>
+      </nav>
+      <div class="header-actions">
+        <button
+          class="motion-toggle"
+          id="motion-toggle"
+          aria-pressed="false"
+          aria-label="Pause motion"
+        >
+          <svg class="icon" aria-hidden="true">
+            <use href="/assets/icons.svg#player-pause" /></svg
+          ><span>Pause motion</span></button
+        ><a class="button small" href="/download/"
+          >Get Orb
+          <svg class="icon" aria-hidden="true">
+            <use href="/assets/icons.svg#arrow-down" /></svg
+        ></a>
+      </div>
+    </header>
+    <main id="main">
+      <section class="hero shell">
+        <div class="hero-heading">
+          <h1>Your screen.<br />Your wallet.<br /><span>Your call.</span></h1>
+          <div class="hero-intro">
+            <p>
+              Pay what’s on your screen. <br />Spot what shouldn’t be. <br />Let
+              your agents ask first.
+            </p>
+            <div class="actions">
+              <a class="button" href="/download/"
+                >Get Orb for Android
+                <svg class="icon" aria-hidden="true">
+                  <use href="/assets/icons.svg#arrow-down" /></svg></a
+              ><a class="text-link" href="#playground"
+                >Take it for a spin
+                <svg class="icon" aria-hidden="true">
+                  <use href="/assets/icons.svg#arrow-up-right" /></svg
+              ></a>
+            </div>
+            <p class="fine">Android 10+ · v1.0.0 preview · Native MON</p>
+          </div>
+        </div>
+        <div id="playground">
+          <div id="playground-mount">
+            <p class="fallback">
+              An Android wallet that meets you in the conversation. Enable
+              JavaScript to try the local payment simulation.
+            </p>
+          </div>
+        </div>
+        <div class="capability-strip">
+          <span
+            ><svg class="icon" aria-hidden="true">
+              <use href="/assets/icons.svg#scan" />
+            </svg>
+            Tap to read the screen</span
+          ><span
+            ><svg class="icon" aria-hidden="true">
+              <use href="/assets/icons.svg#shield-check" />
+            </svg>
+            See the risk signals</span
+          ><span
+            ><svg class="icon" aria-hidden="true">
+              <use href="/assets/icons.svg#fingerprint" />
+            </svg>
+            You approve the payment</span
+          ><span
+            ><svg class="icon" aria-hidden="true">
+              <use href="/assets/icons.svg#brand-android" />
+            </svg>
+            Made for Android</span
+          >
+        </div>
+      </section>
+      <section class="feature-section shell" id="features">
+        <div class="section-heading">
+          <h2>A little orb.<br />A lot within reach.</h2>
+          <p>
+            A payment tool, a second look at a message,<br />and a bridge to the
+            agents you use.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="ens-feature">
+            <div class="feature-visual ens-visual">
+              <span class="name-token"
+                >kartik.eth
+                <svg class="icon" aria-hidden="true">
+                  <use href="/assets/icons.svg#arrow-down" /></svg></span
+              ><span class="address-token">0x7a…9B2e</span
+              ><span class="network-token">Monad testnet</span>
+            </div>
+            <h3>Names, not a wall of hex.</h3>
+            <p>
+              Pay an ENS name you can read. Orb resolves it on Ethereum and
+              checks it again on your phone before preparing a Monad payment.
+            </p>
+          </article>
+          <article class="voice-feature">
+            <div class="feature-visual voice-visual">
+              <button
+                class="voice-sample"
+                aria-label="Show voice input example"
+              >
+                <svg class="icon" aria-hidden="true">
+                  <use href="/assets/icons.svg#microphone" />
+                </svg></button
+              ><span>“Pay 0.2 MON<br />on testnet.”</span>
+              <div class="wave" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+            <h3>Say it. Hear it. Check it.</h3>
+            <p>
+              Use Android’s speech dialog in Hindi or English, and hear review
+              cards read aloud. Approval stays in your hands.
+            </p>
+            <p class="fine" id="voice-note">
+              Tap the mic for an illustrative transcript. No recording.
+            </p>
+          </article>
+        </div>
+      </section>
+      <section class="shield-section" id="scam-shield">
+        <div class="shell">
+          <div class="section-heading">
+            <h2>A second look.<br />Before you send.</h2>
+            <p>
+              Scam Shield surfaces the signals hiding in a message. Try these
+              sample screens and see what changes.
+            </p>
+          </div>
+          <div id="shield-mount"></div>
+          <p class="fine">
+            Illustrative verdicts based on Orb’s checks. A risk label cannot
+            guarantee safety.
+          </p>
+        </div>
+      </section>
+      <section class="agents-section shell" id="agents">
+        <div class="section-heading">
+          <h2>Your agents can ask.<br />Only you can approve.</h2>
+          <p>
+            Connect Claude Code, Codex or another MCP client. Review requests on
+            your phone, with the same recipient and risk checks.
+          </p>
+        </div>
+        <div id="agents-mount"></div>
+      </section>
+      <section class="how-section shell" id="how-it-works">
+        <div class="section-heading">
+          <h2>From “send this”<br />to “all set.”</h2>
+          <a class="text-link" href="/download/#setup"
+            >Get set up
+            <svg class="icon" aria-hidden="true">
+              <use href="/assets/icons.svg#arrow-up-right" /></svg
+          ></a>
+        </div>
+        <div id="how-mount"></div>
+      </section>
+      <section class="control-section shell">
+        <div class="control-title">
+          <span class="big-glyph"
+            ><span class="brand-mark" aria-hidden="true"
+              ><img src="/assets/orb-glyph.svg" alt="" /></span
+          ></span>
+          <h2>Small on your screen.<br />Clear about control.</h2>
+        </div>
+        <div class="control-list">
+          <article>
+            <svg class="icon" aria-hidden="true">
+              <use href="/assets/icons.svg#hand-stop" />
+            </svg>
+            <div>
+              <h3>A tap starts it.</h3>
+              <p>
+                Screen context is captured on demand. Inspect or exclude what
+                Orb sees.
+              </p>
+            </div>
+          </article>
+          <article>
+            <svg class="icon" aria-hidden="true">
+              <use href="/assets/icons.svg#device-mobile" />
+            </svg>
+            <div>
+              <h3>Your phone signs.</h3>
+              <p>
+                The server proposes. The app rebuilds and re-checks the payment
+                before you approve.
+              </p>
+            </div>
+          </article>
+          <article>
+            <svg class="icon" aria-hidden="true">
+              <use href="/assets/icons.svg#arrows-exchange" />
+            </svg>
+            <div>
+              <h3>The network is explicit.</h3>
+              <p>
+                Mainnet or testnet must be named. Orb asks when the network is
+                missing.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+      <section class="faq-section shell" id="faq">
+        <div class="section-heading">
+          <h2>Good questions.<br />Clear answers.</h2>
+          <div class="faq-tools">
+            <label for="faq-search">Search the FAQ</label>
+            <div class="search-field">
+              <svg class="icon" aria-hidden="true">
+                <use href="/assets/icons.svg#search" /></svg
+              ><input
+                type="search"
+                id="faq-search"
+                placeholder="Try “permissions” or “agents”"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="faq-toolbar">
+          <div id="faq-topics" class="chips" aria-label="FAQ topics">
+            <button aria-pressed="true" data-topic="All">All</button
+            ><button aria-pressed="false" data-topic="Using Orb">
+              Using Orb</button
+            ><button aria-pressed="false" data-topic="Payments">Payments</button
+            ><button aria-pressed="false" data-topic="Safety">Safety</button
+            ><button aria-pressed="false" data-topic="Agents">Agents</button
+            ><button aria-pressed="false" data-topic="Download">
+              Download
+            </button>
+          </div>
+          <button id="faq-expand" class="text-button">Expand all</button>
+        </div>
+        <p class="fine" id="faq-count" role="status">10 answers</p>
+        <div class="faq-list">
+          <details data-topic="Using Orb">
+            <summary>What is Orb?<span aria-hidden="true">+</span></summary>
+            <div class="faq-answer">
+              <p>
+                Orb is an Android wallet with a floating button over other apps.
+                Tap it to read visible text, ask a question, check a suspicious
+                message, or prepare a MON payment. You review and approve
+                payments on your device.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Using Orb">
+            <summary>
+              Does Orb work with WhatsApp, email and Telegram?<span
+                aria-hidden="true"
+                >+</span
+              >
+            </summary>
+            <div class="faq-answer">
+              <p>
+                Orb reads visible text through Android accessibility when you
+                tap it, or uses text you copy. It is not a WhatsApp, email or
+                Telegram integration. The screens on this website are
+                illustrative samples.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Payments">
+            <summary>
+              Is the website demo a real payment?<span aria-hidden="true"
+                >+</span
+              >
+            </summary>
+            <div class="faq-answer">
+              <p>
+                No. Every example, address and receipt here is a local
+                simulation. The website never connects to your wallet, signs a
+                transaction or sends funds.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Payments">
+            <summary>
+              Which tokens and networks can I use?<span aria-hidden="true"
+                >+</span
+              >
+            </summary>
+            <div class="faq-answer">
+              <p>
+                The current app supports native MON on Monad mainnet (chain 143)
+                and testnet (chain 10143). Say the network explicitly; Orb asks
+                when it is missing. ENS names resolve on Ethereum, but the
+                payment is sent on the Monad network you choose.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Safety">
+            <summary>
+              What does Scam Shield check?<span aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-answer">
+              <p>
+                It flags signals such as requests for secrets, remote access,
+                pay-to-receive fees, urgency and lookalike recipients. It shows
+                Looks safe, Be careful or Likely scam with reasons. These are
+                risk signals, never a guarantee that a payment is safe.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Agents">
+            <summary>
+              Can an AI agent spend without asking me?<span aria-hidden="true"
+                >+</span
+              >
+            </summary>
+            <div class="faq-answer">
+              <p>
+                An MCP client can request a payment and check its status. You
+                review and explicitly approve on the phone. Agent keys can be
+                disconnected. Preview agent limits and account binding still
+                need production hardening; start with testnet.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Payments">
+            <summary>
+              How are payments approved?<span aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-answer">
+              <p>
+                The app uses fingerprint or device PIN where supported and
+                enrolled. If device authentication is unavailable, not enrolled
+                or fails its capability check, the current preview uses a
+                hold-to-confirm action. Voice never confirms a payment.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Safety">
+            <summary>
+              Is Orb always reading my screen?<span aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-answer">
+              <p>
+                No. The screen reader captures visible text when you tap the
+                orb. You can inspect or exclude the captured text. The native
+                handoff expires after 120 seconds, but included text can remain
+                in the Ask session and is sent to the agent server for online
+                requests.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Download">
+            <summary>
+              What does the Android download need?<span aria-hidden="true"
+                >+</span
+              >
+            </summary>
+            <div class="faq-answer">
+              <p>
+                A 64-bit ARM Android 10+ phone. This v1.0.0 APK is debug signed
+                and sideloaded, not a Play Store release. AI chat and connected
+                agents need the configured server to be reachable. A basic
+                parser can interpret supported requests without the agent
+                server; chain checks and payments still need internet.
+              </p>
+            </div>
+          </details>
+          <details data-topic="Download">
+            <summary>
+              Is there an iPhone version?<span aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-answer">
+              <p>
+                The current release is Android only. The overlay and
+                screen-reading workflow depend on Android capabilities. There is
+                no iOS download in this release.
+              </p>
+            </div>
+          </details>
+        </div>
+        <div id="faq-empty" hidden>
+          <p>No answers found.</p>
+          <button id="faq-reset" class="button secondary">Clear filters</button>
+        </div>
+      </section>
+      <section class="download-close">
+        <div class="shell">
+          <h2>Meet your new<br />screen companion.</h2>
+          <div>
+            <a href="/download/" class="button light"
+              >Get Orb for Android
+              <svg class="icon" aria-hidden="true">
+                <use href="/assets/icons.svg#arrow-down" /></svg
+            ></a>
+            <p>Android 10+ · ARM64 · Preview APK</p>
+            <a href="/download/#release-notes" class="text-link"
+              >What’s in v1.0.0
+              <svg class="icon" aria-hidden="true">
+                <use href="/assets/icons.svg#arrow-up-right" /></svg
+            ></a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <a href="/" class="brand"
+        ><span class="brand-mark" aria-hidden="true"
+          ><img src="/assets/orb-glyph.svg" alt="" /></span
+        ><span>orb</span></a
+      >
+      <p>Your screen. Your wallet. Your call.</p>
+      <div>
+        <a href="/download/">Android download</a
+        ><a href="/privacy.html">Privacy & permissions</a
+        ><a href="/#faq">Questions?</a>
+      </div>
+      <small>Orb v1.0.0 · Android preview · Built on Monad</small>
+    </footer>
+    <script type="module" src="/assets/interactions.js"></script>
+  </body>
+</html>
