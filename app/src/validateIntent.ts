@@ -85,3 +85,37 @@ export function withNewRecipient(intent: Intent, known: Set<string>): Intent {
   if (known.has(intent.to.toLowerCase()) || intent.warnings.includes('NEW_RECIPIENT')) return intent;
   return { ...intent, warnings: ['NEW_RECIPIENT', ...intent.warnings] };
 }
+
+export function isLookalike(a: string, b: string): boolean {
+  const x = a.toLowerCase();
+  const y = b.toLowerCase();
+  return x !== y && x.slice(2, 6) === y.slice(2, 6) && x.slice(-4) === y.slice(-4);
+}
+
+/** Payment history the recipient checks run against. */
+type RecipientHistory = {
+  /** Lowercased addresses from `recipients:v1`. */
+  known: Set<string>;
+  /** The user's own wallet; a lookalike of it is flagged too. */
+  wallet: string;
+  /** ENS name to lowercased address from `ensBook:v1`. */
+  ensBook: Record<string, string>;
+};
+
+/**
+ * Adds the device-only warnings, most serious first:
+ * `LOOKALIKE_RECIPIENT`, `ENS_ADDRESS_CHANGED`, `NEW_RECIPIENT`.
+ * @param intent Intent to annotate.
+ * @param history This device's payment history.
+ * @returns The intent, or a copy with the warnings prepended.
+ */
+export function withRecipientChecks(intent: Intent, history: RecipientHistory): Intent {
+  const to = intent.to.toLowerCase();
+  const added: Intent['warnings'] = [];
+  if ([...history.known, history.wallet].some((k) => isLookalike(to, k))) added.push('LOOKALIKE_RECIPIENT');
+  const before = intent.ensName ? history.ensBook[intent.ensName] : undefined;
+  if (before && before !== to) added.push('ENS_ADDRESS_CHANGED');
+  if (!history.known.has(to)) added.push('NEW_RECIPIENT');
+  const fresh = added.filter((w) => !intent.warnings.includes(w));
+  return fresh.length ? { ...intent, warnings: [...fresh, ...intent.warnings] } : intent;
+}

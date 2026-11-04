@@ -85,6 +85,8 @@ export type Intent = {
   chainId: typeof CHAIN_ID;
   /** Checksummed recipient. */
   to: Address;
+  /** Present when the recipient was typed as a name. */
+  ensName?: string;
   /** Decimal wei string. */
   amountWei: string;
   /** e.g. "2 MON". */
