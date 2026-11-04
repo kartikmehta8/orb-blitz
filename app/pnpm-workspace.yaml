@@ -12,3 +12,10 @@ allowBuilds:
   unrs-resolver: true
   bufferutil: false
   utf-8-validate: false
+
+# Patched ws for every major line in the tree (read by pnpm 10 and 11; package.json's
+# "pnpm" field is ignored by pnpm 11, which once dropped these from the lockfile).
+overrides:
+  'ws@^6': 6.2.6
+  'ws@^7': 7.5.13
+  'ws@^8': 8.22.0

@@ -61,12 +61,5 @@
     "typescript": "~5.8.3",
     "vitest": "^5.0.5"
   },
-  "private": true,
-  "pnpm": {
-    "overrides": {
-      "ws@^6": "6.2.6",
-      "ws@^7": "7.5.13",
-      "ws@^8": "8.22.0"
-    }
-  }
+  "private": true
 }
