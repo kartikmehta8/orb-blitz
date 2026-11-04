@@ -12,6 +12,8 @@ import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { anthropicCreateMessage, runAgent, type AgentDeps } from './agent';
+import { mountAgentRoutes } from './agents/routes';
+import { AgentStore } from './agents/store';
 import { createPrivyAccessVerifier, loadAuthConfig, type AuthConfig } from './auth';
 import { createChainClients, createEnsClient, DEFAULT_ENS_RPC_URL } from './chain';
 import { CHAIN_IDS } from './intent';
@@ -28,6 +30,8 @@ export type AppDeps = AgentDeps & {
   now?: () => number;
   /** Receives one JSON line per request. */
   log?: (line: string) => void;
+  /** Connected agents and their requests; defaults to memory only. */
+  agents?: AgentStore;
 };
 
 /** Hono context variables: safe fields for the request log line, and the caller's Privy user id. */
@@ -126,6 +130,7 @@ export function createApp(deps: AppDeps): Hono<Env> {
     return c.json(response);
   });
 
+  mountAgentRoutes(app, { store: deps.agents ?? new AgentStore(null, now), chains: deps.chains, ens: deps.ens, rateLimited });
 
   app.onError((err, c) => {
     c.set('log', { errors: [err.name] });
@@ -157,6 +162,7 @@ function main(): void {
     chains: createChainClients(env),
     ens: createEnsClient(env.ENS_RPC_URL || DEFAULT_ENS_RPC_URL),
     createMessage: apiKey ? anthropicCreateMessage(new Anthropic({ apiKey, maxRetries: 1 })) : null,
+    agents: new AgentStore(env.AGENTS_FILE || 'data/agents.json'),
   });
   const port = Number(env.PORT) || 8787;
   serve({ fetch: app.fetch, port }, () => console.log(`Orb agent server on :${port} (model ${model}, chains ${CHAIN_IDS.join(', ')})`));
