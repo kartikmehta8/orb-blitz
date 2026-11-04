@@ -138,3 +138,7 @@ If you sideloaded the APK, enable accessibility via App info → ⋮ → **Allow
 - Rate limit is 30 requests per minute per Privy user id (one shared bucket when `AUTH_MODE=token`).
 - An intent may include `memo`, a display-only note of at most 80 characters ("send 1 MON to Rahul for dinner" → `dinner`). It is not part of the signed transaction and never changes the amount or the recipient.
 - `setOrbState('idle' | 'capturing' | 'thinking' | 'success' | 'error')` paints the overlay. `success` and `error` return to `idle` after 1.5s. The paint function to restyle is `applyOrbStateVisual` in `app/modules/bubble-overlay/.../OrbVisual.kt`. `useOrbState()` reads the same state in React.
+
+## Website
+
+The public landing page, browser simulation and verified Android APK download live in [`website/`](website/README.md). It builds independently from the app/server with `cd website && npm ci && npm run verify`. The Vercel project uses `website` as its root directory and `dist` as its output.

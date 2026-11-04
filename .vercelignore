@@ -1,0 +1,12 @@
+# This Vercel project deploys only the website, never the Android app or agent server.
+**
+!website/
+!website/**
+website/node_modules/
+website/dist/
+website/.vercel/
+website/.env*
+website/DESIGN.md
+website/PRODUCT.md
+website/ASSETS.md
+website/README.md

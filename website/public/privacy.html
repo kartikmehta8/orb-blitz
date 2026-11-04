@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <title>Orb — Privacy & permissions</title>
+    <meta
+      name="description"
+      content="How the Orb website demo and Android preview use screen context, voice and permissions."
+    />
+    <link rel="canonical" href="__SITE_URL__/privacy.html" />
+    <meta property="og:title" content="Orb — Privacy & permissions" />
+    <meta
+      property="og:description"
+      content="How the Orb website demo and Android preview use screen context, voice and permissions."
+    />
+    <meta property="og:image" content="__SITE_URL__/assets/orb-social.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/assets/orb-mark.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/assets/inter-regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/assets/interactions.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a href="/" class="brand" aria-label="Orb home"
+        ><span class="brand-mark" aria-hidden="true"
+          ><img src="/assets/orb-glyph.svg" alt="" /></span
+        ><span>orb</span></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="/#playground">Explore Orb</a
+        ><a href="/#how-it-works">How it works</a><a href="/#faq">FAQ</a>
+      </nav>
+      <div class="header-actions">
+        <button
+          class="motion-toggle"
+          id="motion-toggle"
+          aria-pressed="false"
+          aria-label="Pause motion"
+        >
+          <svg class="icon" aria-hidden="true">
+            <use href="/assets/icons.svg#player-pause" /></svg
+          ><span>Pause motion</span></button
+        ><a class="button small" href="/download/"
+          >Get Orb
+          <svg class="icon" aria-hidden="true">
+            <use href="/assets/icons.svg#arrow-down" /></svg
+        ></a>
+      </div>
+    </header>
+    <main id="main">
+      <article class="prose shell">
+        <h1>Privacy & permissions</h1>
+        <p>
+          Orb is an Android preview. This page describes the current v1.0.0
+          source; the website demo and the installed app have different data
+          paths.
+        </p>
+        <h2>On this website</h2>
+        <p>
+          Payment, safety and agent examples run locally. They do not connect a
+          wallet, analyze your real messages or send transactions. Search and
+          examples stay in this page. Installation checklist progress is stored
+          locally in your browser. The site host receives normal requests for
+          pages, fonts and download files.
+        </p>
+        <h2>In the Android app</h2>
+        <p>
+          Email sign-in and the embedded wallet use Privy. Keys are held by the
+          device wallet flow. When you use online assistance, the app sends
+          selected screen context and your request to its configured agent
+          server, which may use Anthropic and read-only blockchain RPC services.
+          Accessibility context is captured when you tap the orb. The native
+          handoff expires after 120 seconds; consumed text can remain in the Ask
+          session and included text is sent to the server on requests. You can
+          inspect or exclude it.
+        </p>
+        <h2>Android permissions</h2>
+        <ul>
+          <li>
+            <strong>Display over other apps:</strong> draws the floating orb.
+          </li>
+          <li>
+            <strong>Accessibility:</strong> reads visible text on demand; copied
+            text is an alternative.
+          </li>
+          <li>
+            <strong>Notifications:</strong> supports the foreground service and
+            incoming agent requests.
+          </li>
+          <li>
+            <strong>Battery optimization exemption:</strong> helps keep the
+            service running.
+          </li>
+        </ul>
+        <h2>Voice and approval</h2>
+        <p>
+          Android’s speech dialog handles voice input. The app does not need its
+          own microphone permission for that dialog. Voice does not approve a
+          payment. Device authentication is used where available; this preview
+          otherwise offers hold-to-confirm.
+        </p>
+        <h2>Preview limitations</h2>
+        <p>
+          Scam Shield is a risk indicator, not a safety guarantee. The release
+          is debug signed and its online features depend on the configured
+          backend. Agent queue limits and authenticated wallet ownership binding
+          need further hardening before production use.
+        </p>
+        <a class="button" href="/download/">Back to Android download</a>
+      </article>
+    </main>
+    <footer>
+      <a href="/" class="brand"
+        ><span class="brand-mark" aria-hidden="true"
+          ><img src="/assets/orb-glyph.svg" alt="" /></span
+        ><span>orb</span></a
+      >
+      <p>Your screen. Your wallet. Your call.</p>
+      <div>
+        <a href="/download/">Android download</a
+        ><a href="/privacy.html">Privacy & permissions</a
+        ><a href="/#faq">Questions?</a>
+      </div>
+      <small>Orb v1.0.0 · Android preview · Built on Monad</small>
+    </footer>
+    <script type="module" src="/assets/interactions.js"></script>
+  </body>
+</html>
