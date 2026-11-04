@@ -48,7 +48,4 @@ export const txUrl = (hash: string, chainId: ChainId = TESTNET_CHAIN_ID): string
  * @param chainId Network to show.
  * @returns MonadVision address page.
  */
-export const addressUrl = (address: string, chainId: ChainId = TESTNET_CHAIN_ID): string => `${NETWORKS[chainId].explorerUrl}/address/${address}`;
-
-/** Testnet chain object for screens that have not picked a network yet. */
-export const monadTestnet = monadChains[TESTNET_CHAIN_ID];
+export const addressUrl = (address: string, chainId: ChainId): string => `${NETWORKS[chainId].explorerUrl}/address/${address}`;

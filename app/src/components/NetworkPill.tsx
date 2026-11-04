@@ -1,28 +1,58 @@
 /**
- * @file Network badge: the Monad logomark beside the network name, used in the
- * Wallet header, the Ask sheet header and the Profile network row so the
- * network reads the same everywhere.
+ * @file Network switch for the Wallet: which Monad network the balance and
+ * links show. The whole pill is green on mainnet (real MON) and orange on testnet.
+ *
+ * Display only. Payments never use it: each payment's network is the one the
+ * user names, and Orb asks when they have not.
  */
-import { StyleSheet, View } from 'react-native';
+import { Icon } from './Icon';
+import * as Haptics from 'expo-haptics';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { MAINNET_CHAIN_ID, NETWORKS } from '../intent';
+import { useViewNetwork } from '../network';
 import { colors, radius, space } from '../theme';
 import { MonadMark } from './BrandMark';
 import { Text } from './ui';
 
-const MARK = 12;
-
 /**
- * Soft purple pill with the Monad mark and a network label.
- * @param props.label Network name (default "Testnet"; use "Monad Testnet" where there is room).
- * @returns The badge, announced as one element.
+ * Pill with the Monad mark, the network name and a status dot.
+ * @param props.toggle Tapping switches between mainnet and testnet (Wallet header only).
+ * @returns The pill.
  */
-export function NetworkPill({ label = 'Testnet' }: { label?: string }) {
-  return (
-    <View style={styles.pill} accessible accessibilityLabel={label === 'Testnet' ? 'Monad Testnet' : label}>
-      <MonadMark size={MARK} color={colors.primary} />
-      <Text variant="captionStrong" color="primaryInk">
+export function NetworkPill({ toggle }: { toggle?: boolean }) {
+  const [chainId, switchNetwork] = useViewNetwork();
+  const mainnet = chainId === MAINNET_CHAIN_ID;
+  const label = mainnet ? 'Mainnet' : 'Testnet';
+  const fill = mainnet ? colors.mainnet : colors.testnet;
+  const content = (
+    <>
+      <MonadMark size={12} color={colors.textInverse} />
+      <Text variant="captionStrong" color="textInverse">
         {label}
       </Text>
-    </View>
+      {toggle ? <Icon name="chevron-down" size={14} color={colors.textInverse} weight="bold" /> : null}
+    </>
+  );
+  if (!toggle) {
+    return (
+      <View style={[styles.pill, { backgroundColor: fill }]} accessible accessibilityLabel={NETWORKS[chainId].name}>
+        {content}
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${NETWORKS[chainId].name}. Switch to ${mainnet ? 'testnet' : 'mainnet'}`}
+      onPress={() => {
+        void Haptics.selectionAsync();
+        switchNetwork();
+      }}
+      hitSlop={space.sm}
+      style={({ pressed }) => [styles.pill, { backgroundColor: fill }, pressed && styles.pressed]}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -31,9 +61,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.xs + 2,
-    paddingHorizontal: space.sm + 2,
-    paddingVertical: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
     borderRadius: radius.pill,
-    backgroundColor: colors.primarySoft,
   },
+  pressed: { opacity: 0.85 },
 });

@@ -1,18 +1,20 @@
 /**
- * @file Design-system primitives: Text, Button, Card, Pill, StatusDot,
+ * @file Design-system primitives: Text, Button, Card, Pill,
  * IconTile, ListRow, SectionHeader, ProgressBar and Toggle.
  *
  * Screens compose these instead of styling raw RN views, which keeps
  * typography, color and touch targets consistent across the app.
  */
-import { Feather } from '@expo/vector-icons';
-import type { ComponentProps, ReactNode } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useEffect, useRef, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Pressable,
   Text as RNText,
   StyleSheet,
-  Switch,
+  Platform,
   View,
   type PressableProps,
   type StyleProp,
@@ -21,8 +23,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors, HIT, radius, shadow, space, type as typeScale, type ColorToken, type TypeVariant } from '../theme';
+import { Icon, type IconName } from './Icon';
 
-export type IconName = ComponentProps<typeof Feather>['name'];
+export type { IconName } from './Icon';
 
 /** Semantic tones shared by pills, tiles, dots and progress bars. */
 export type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger';
@@ -98,7 +101,7 @@ export function Button({ label, variant = 'primary', icon, loading, disabled, si
         <ActivityIndicator color={colors[fg]} size="small" />
       ) : (
         <>
-          {icon && <Feather name={icon} size={16} color={colors[fg]} />}
+          {icon && <Icon name={icon} size={16} color={colors[fg]} />}
           <Text variant="button" color={fg} style={[styles.buttonLabel, size === 'sm' && styles.buttonSmText]}>
             {label}
           </Text>
@@ -149,21 +152,8 @@ export function Pill({ label, tone = 'neutral', dot }: { label: string; tone?: T
 }
 
 /**
- * Status dot with a soft halo.
- * @param props.tone `success` (ok), `warning` (recommended) or `danger` (required, missing).
- * @returns A 7-pt dot inside a 16-pt halo.
- */
-export function StatusDot({ tone }: { tone: Extract<Tone, 'success' | 'warning' | 'danger'> }) {
-  return (
-    <View style={[styles.halo, { backgroundColor: TONES[tone].bg }]}>
-      <View style={[styles.dot, { backgroundColor: colors[TONES[tone].fg] }]} />
-    </View>
-  );
-}
-
-/**
  * Outline icon for a row. No tinted tile: color is reserved for status.
- * @param props.icon Feather icon name.
+ * @param props.icon Icon name.
  * @param props.tone Icon color (default neutral).
  * @param props.size Slot edge in pt (default 24). The glyph stays smaller than the slot.
  * @returns The icon.
@@ -172,7 +162,7 @@ export function IconTile({ icon, tone = 'neutral', size = 24 }: { icon: IconName
   const t = TONES[tone];
   return (
     <View style={[styles.tile, { width: size, height: size }]}>
-      <Feather name={icon} size={Math.min(22, Math.round(size * 0.7))} color={colors[t.fg]} />
+      <Icon name={icon} size={Math.min(22, Math.round(size * 0.7))} color={colors[t.fg]} />
     </View>
   );
 }
@@ -192,6 +182,8 @@ type ListRowProps = {
   note?: string;
   /** Hairline above the row (for stacked rows inside a card). */
   divider?: boolean;
+  /** Custom leading element (an avatar) instead of the icon tile. */
+  leading?: ReactNode;
   accessibilityLabel?: string;
 };
 
@@ -199,10 +191,10 @@ type ListRowProps = {
  * Settings-style row: icon tile, title, subtitle, trailing slot.
  * @returns A static or pressable row with a 56-pt minimum height.
  */
-export function ListRow({ title, subtitle, icon, tone, trailing, onPress, divider, note, accessibilityLabel }: ListRowProps) {
+export function ListRow({ title, subtitle, icon, tone, trailing, onPress, divider, note, accessibilityLabel, leading }: ListRowProps) {
   const content = (
     <>
-      {icon && <IconTile icon={icon} tone={tone} />}
+      {leading ?? (icon && <IconTile icon={icon} tone={tone} />)}
       <View style={styles.rowText}>
         <Text variant="bodyStrong">{title}</Text>
         {note ? (
@@ -216,7 +208,7 @@ export function ListRow({ title, subtitle, icon, tone, trailing, onPress, divide
           </Text>
         ) : null}
       </View>
-      {trailing ?? (onPress ? <Feather name="chevron-right" size={18} color={colors.textTertiary} /> : null)}
+      {trailing ?? (onPress ? <Icon name="chevron-right" size={18} color={colors.textTertiary} /> : null)}
     </>
   );
   const style = [styles.row, divider && styles.rowDivider];
@@ -306,20 +298,54 @@ export function Toggle({
   label: string;
   disabled?: boolean;
 }) {
+  const on = useRef(new Animated.Value(value ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(on, { toValue: value ? 1 : 0, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [on, value]);
   return (
-    <Switch
+    <Pressable
+      accessibilityRole="switch"
       accessibilityLabel={label}
-      value={value}
-      onValueChange={onValueChange}
+      accessibilityState={{ checked: value, disabled: !!disabled }}
       disabled={disabled}
-      trackColor={{ true: colors.primary, false: colors.borderStrong }}
-      thumbColor={colors.surface}
-      ios_backgroundColor={colors.borderStrong}
-    />
+      hitSlop={(HIT - TOGGLE_H) / 2}
+      onPress={() => {
+        void Haptics.selectionAsync();
+        onValueChange(!value);
+      }}
+    >
+      <Animated.View
+        style={[
+          styles.toggleTrack,
+          disabled && styles.trackDisabled,
+          { backgroundColor: on.interpolate({ inputRange: [0, 1], outputRange: [colors.borderStrong, colors.primary] }) },
+        ]}
+      >
+        <Animated.View
+          style={[styles.knob, { transform: [{ translateX: on.interpolate({ inputRange: [0, 1], outputRange: [0, TOGGLE_W - TOGGLE_H] }) }] }]}
+        />
+      </Animated.View>
+    </Pressable>
   );
 }
 
+/** Toggle track: 52 x 32, knob inset 3. */
+const TOGGLE_W = 52;
+const TOGGLE_H = 32;
+
 const styles = StyleSheet.create({
+  toggleTrack: { width: TOGGLE_W, height: TOGGLE_H, borderRadius: TOGGLE_H / 2, padding: 3, justifyContent: 'center' },
+  trackDisabled: { opacity: 0.4 },
+  knob: {
+    width: TOGGLE_H - 6,
+    height: TOGGLE_H - 6,
+    borderRadius: (TOGGLE_H - 6) / 2,
+    backgroundColor: colors.surface,
+    ...Platform.select<ViewStyle>({
+      android: { elevation: 2 },
+      default: { shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+    }),
+  },
   button: {
     minHeight: 52,
     paddingHorizontal: space.xl,
@@ -352,7 +378,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  halo: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   tile: { alignItems: 'center', justifyContent: 'center' },
   row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
   rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },

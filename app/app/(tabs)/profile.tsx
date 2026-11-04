@@ -2,23 +2,34 @@
  * @file Profile tab: account card (email and wallet address), spending
  * limits, network, security and about sections, and Sign out with a confirm.
  */
-import { Feather } from '@expo/vector-icons';
+import { Icon } from '../../src/components/Icon';
 import { usePrivy } from '@privy-io/expo';
 import Constants from 'expo-constants';
 import type { ReactNode } from 'react';
+import { router } from 'expo-router';
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
-import { Avatar } from '../../src/components/Avatar';
 import { LimitsCard } from '../../src/components/LimitsCard';
 import { NetworkPill } from '../../src/components/NetworkPill';
 import { Screen } from '../../src/components/Screen';
-import { Card, ListRow, SectionHeader, Text, type IconName } from '../../src/components/ui';
+import { Card, ListRow, SectionHeader, Text, Toggle, type IconName } from '../../src/components/ui';
 import { useCopy } from '../../src/components/useCopy';
 import { addressUrl, config } from '../../src/config';
-import { NETWORKS, TESTNET_CHAIN_ID, shortAddress } from '../../src/intent';
-import { colors, HIT, radius, space } from '../../src/theme';
+import { NETWORKS, shortAddress, TESTNET_CHAIN_ID } from '../../src/intent';
+import { useViewNetwork } from '../../src/network';
+import { colors, HIT, radius, space, type as typeScale } from '../../src/theme';
+import { useReadAloud } from '../../src/voice';
 import { useWalletData } from '../../src/walletData';
 
-type Row = { icon: IconName; title: string; subtitle?: string; onPress?: () => void; value?: string; badge?: ReactNode };
+type Row = {
+  icon: IconName;
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+  value?: string;
+  badge?: ReactNode;
+  /** Opens a screen inside Orb: a chevron instead of the external-link icon. */
+  internal?: boolean;
+};
 
 const open = (url: string) => void Linking.openURL(url);
 
@@ -49,7 +60,7 @@ function Group({ title, rows }: { title: string; rows: Row[] }) {
                   {row.value}
                 </Text>
               ) : row.onPress ? (
-                <Feather name="external-link" size={16} color={colors.textTertiary} />
+                <Icon name={row.internal ? 'chevron-right' : 'external-link'} size={row.internal ? 20 : 16} color={colors.textTertiary} />
               ) : undefined)
             }
           />
@@ -68,6 +79,8 @@ export default function ProfileScreen() {
   const { address, email, limits, localError, reloadLocal } = useWalletData();
   const { copied, copy } = useCopy();
   const version = Constants.expoConfig?.version ?? '1.0.0';
+  const [readAloud, setReadAloud] = useReadAloud();
+  const [chainId] = useViewNetwork();
 
   const confirmSignOut = () =>
     Alert.alert('Sign out?', 'Sign in again with the same email to get back to this wallet.', [
@@ -78,9 +91,11 @@ export default function ProfileScreen() {
   return (
     <Screen title="Profile">
       <Card style={styles.account}>
-        <Avatar email={email} size={56} />
         <View style={styles.flex}>
-          <Text variant="headline" numberOfLines={1} ellipsizeMode="middle">
+          <Text variant="caption" color="textTertiary">
+            Signed in as
+          </Text>
+          <Text variant="bodyStrong" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {email ?? 'Privy account'}
           </Text>
           {address ? (
@@ -91,10 +106,10 @@ export default function ProfileScreen() {
               hitSlop={space.sm}
               style={({ pressed }) => [styles.address, pressed && styles.pressed]}
             >
-              <Text variant="mono" color="textSecondary">
-                {copied ? 'Copied' : shortAddress(address)}
+              <Text color="textSecondary" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.flexShrink, styles.addressText]}>
+                {copied ? 'Copied' : address}
               </Text>
-              <Feather name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.success : colors.textTertiary} />
+              <Icon name={copied ? 'check' : 'copy'} size={14} color={copied ? colors.success : colors.textSecondary} />
             </Pressable>
           ) : (
             <Text variant="caption" color="textSecondary">
@@ -112,16 +127,50 @@ export default function ProfileScreen() {
       />
 
       <Group
+        title="Your account"
+        rows={[
+          {
+            icon: 'clock',
+            title: 'Activity',
+            subtitle: 'Every payment from this phone, on both networks',
+            onPress: () => router.navigate('/activity'),
+            internal: true,
+          },
+          {
+            icon: 'cpu',
+            title: 'Agents',
+            subtitle: 'Let Claude or Codex ask you for payments',
+            onPress: () => router.push('/agents'),
+            internal: true,
+          },
+        ]}
+      />
+
+      <Group
         title="Network"
         rows={[
-          { icon: 'globe', title: 'Network', subtitle: `Chain ID ${TESTNET_CHAIN_ID}`, badge: <NetworkPill label="Monad Testnet" /> },
+          { icon: 'globe', title: 'Wallet shows', subtitle: `${NETWORKS[chainId].name} · chain ${chainId}`, badge: <NetworkPill toggle /> },
           {
             icon: 'search',
             title: 'Explorer',
             subtitle: 'View your wallet on MonadVision',
-            onPress: () => open(address ? addressUrl(address) : NETWORKS[TESTNET_CHAIN_ID].explorerUrl),
+            onPress: () => address && open(addressUrl(address, chainId)),
           },
-          { icon: 'droplet', title: 'Faucet', subtitle: 'Get free testnet MON', onPress: () => open(config.faucetUrl) },
+          ...(chainId === TESTNET_CHAIN_ID
+            ? [{ icon: 'droplet' as const, title: 'Faucet', subtitle: 'Get free testnet MON', onPress: () => open(config.faucetUrl) }]
+            : []),
+        ]}
+      />
+
+      <Group
+        title="Voice"
+        rows={[
+          {
+            icon: 'volume-2',
+            title: 'Read aloud',
+            subtitle: 'Read payments and safety checks out loud',
+            badge: <Toggle value={readAloud} onValueChange={setReadAloud} label="Read aloud" />,
+          },
         ]}
       />
 
@@ -147,7 +196,7 @@ export default function ProfileScreen() {
         onPress={confirmSignOut}
         style={({ pressed }) => [styles.signOut, pressed && styles.signOutPressed]}
       >
-        <Feather name="log-out" size={18} color={colors.danger} />
+        <Icon name="log-out" size={18} color={colors.danger} />
         <Text variant="bodyStrong" color="danger">
           Sign out
         </Text>
@@ -157,9 +206,21 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  flexShrink: { flexShrink: 1 },
+  addressText: { ...typeScale.mono, fontSize: 11.5, lineHeight: 16 },
   flex: { flex: 1, gap: space.xs },
-  account: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  address: { flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'flex-start', minHeight: HIT },
+  account: { flexDirection: 'row', alignItems: 'center', gap: space.lg, paddingVertical: space.lg },
+  address: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    alignSelf: 'stretch',
+    minHeight: 36,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceMuted,
+  },
   pressed: { opacity: 0.6 },
   group: { paddingVertical: space.xs },
   signOut: {

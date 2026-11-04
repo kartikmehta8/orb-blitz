@@ -1,9 +1,11 @@
 /**
  * @file Design tokens: colors, type scale, spacing, radii and elevation.
  *
- * Built on the Monad brand palette (monad.xyz/brand-and-media-kit): purple
- * #6E54FF, lavender #DDD7FE and ink #0E091C on an off-white canvas. Inter for
- * all UI text; Roboto Mono only for addresses and hashes.
+ * A light, wallet-grade palette in the spirit of MetaMask: white surfaces,
+ * near-black text and primary buttons, cool greys for structure, one blue for
+ * text links, and colour otherwise only for status (green, amber, red). The
+ * Monad purple is gone from the chrome. Inter for all UI text; Roboto Mono
+ * only for addresses and hashes.
  *
  * Light mode only, by product decision. Every screen and component
  * takes values from here; no hex codes or font names elsewhere.
@@ -11,51 +13,51 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 export const colors = {
-  /** App canvas behind cards (Monad off-white). */
-  canvas: '#FBFAF9',
+  /** App background. */
+  canvas: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceMuted: '#F5F4F8',
-  border: '#ECEAF1',
-  borderStrong: '#DCD8E6',
+  /** Fills: inputs, chips, icon tiles, quiet buttons. */
+  surfaceMuted: '#F3F4F6',
+  border: '#E8EAED',
+  borderStrong: '#D2D6DB',
 
-  /** Monad ink: primary text. */
-  text: '#0E091C',
-  textSecondary: '#5B5770',
-  /**
-   * Meta text. #6B6680 is about 5.5:1 on white (the old #8F8BA3 was about 3.3:1).
-   * Dark enough for 13px captions and placeholders.
-   */
-  textTertiary: '#6B6680',
+  /** Primary text. */
+  text: '#121314',
+  textSecondary: '#55595F',
+  /** Meta text and placeholders. About 5.2:1 on white. */
+  textTertiary: '#6B7077',
   textInverse: '#FFFFFF',
 
-  /** Monad ink, for the dark QR modules. */
-  ink: '#0E091C',
+  /** Dark QR modules. */
+  ink: '#121314',
 
-  /** Monad purple. Fill only: white on this is about 4.8:1. */
-  primary: '#6E54FF',
-  primaryPressed: '#5A40F0',
-  /**
-   * Purple for text and icons on white or lavender.
-   * #6E54FF on lavender is about 4.2:1; this is about 5.7:1 on primarySoft.
-   */
-  primaryInk: '#5340E6',
-  primarySoft: '#F1EFFF',
-  /** Monad lavender. */
-  primarySoftBorder: '#DDD7FE',
+  /** Primary buttons and the active tab: near-black. */
+  primary: '#121314',
+  primaryPressed: '#34373B',
+  /** Text links and link icons. About 5.3:1 on white. */
+  primaryInk: '#3D5AFE',
+  /** Neutral soft fill for selected chips and secondary icon buttons. */
+  primarySoft: '#F3F4F6',
+  primarySoftBorder: '#E3E5E8',
 
-  /** Text green. About 5.4:1 on white and 4.8:1 on successSoft (the old #0B9F6B was about 3.4:1). */
-  success: '#0A7A4E',
-  successSoft: '#E6F7F0',
-  /** About 5.5:1 on white and 5.1:1 on warningSoft. */
+  /** About 5.4:1 on white. */
+  success: '#1A7F4B',
+  successSoft: '#E8F6EE',
+  /** About 5.5:1 on white. */
   warning: '#9A5A0C',
-  warningSoft: '#FFF5E6',
+  warningSoft: '#FFF6E8',
   warningBorder: '#FFDCA8',
-  /** About 6.5:1 on white and 5.7:1 on dangerSoft. */
-  danger: '#B42336',
-  dangerSoft: '#FDECEE',
+  /** About 6.5:1 on white. */
+  danger: '#C22437',
+  dangerSoft: '#FDEDEF',
 
-  /** Dimmed backdrop behind the ask sheet. */
-  scrim: 'rgba(14, 9, 28, 0.42)',
+  /** Network colours: whole-pill fills with white text (both above 4.5:1). */
+  mainnet: '#1A7F4B',
+  testnet: '#C2410C',
+  testnetSoft: '#FFF1E8',
+
+  /** Dimmed backdrop behind sheets. */
+  scrim: 'rgba(18, 19, 20, 0.45)',
 } as const;
 
 export type ColorToken = keyof typeof colors;

@@ -5,15 +5,15 @@
  * explanation (and a shortcut to grant it) while the overlay permission is
  * missing. Renders nothing without the native module.
  */
-import { Feather } from '@expo/vector-icons';
+import { Icon } from './Icon';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { BubbleOverlay } from '../../modules/bubble-overlay';
 import { setBubbleEnabled } from '../bubble';
 import { fixPermission, type PermissionStatus } from '../permissions';
 import { colors, radius, space } from '../theme';
-import { BrandMark } from './BrandMark';
-import { Button, Card, StatusDot, Text, Toggle, type IconName } from './ui';
+import { OrbGlyph } from './BrandMark';
+import { Button, Card, Text, Toggle, type IconName } from './ui';
 
 const NO_OVERLAY_MESSAGE = 'Allow "Display over other apps" to turn on the orb.';
 
@@ -67,23 +67,27 @@ export function BubbleCard({ status, refresh }: { status: PermissionStatus | nul
     <Card style={styles.card}>
       <View style={styles.main}>
         <View style={styles.preview}>
-          <BrandMark size={32} />
+          <OrbGlyph size={28} color={colors.textInverse} />
         </View>
         <View style={styles.text}>
-          <Text variant="bodyStrong">Floating orb</Text>
-          <View style={styles.status}>
-            {running ? <StatusDot tone="success" /> : null}
-            <Text variant="caption" color={running ? 'success' : 'textSecondary'}>
-              {running ? 'Orb is active over other apps' : 'Off'}
+          <Text variant="headline">Floating orb</Text>
+          <View style={[styles.status, running ? styles.statusOn : styles.statusOff]}>
+            <View style={[styles.statusDot, { backgroundColor: running ? colors.success : colors.textTertiary }]} />
+            <Text variant="captionStrong" color={running ? 'success' : 'textSecondary'}>
+              {running ? 'On over other apps' : 'Off'}
             </Text>
           </View>
         </View>
         <Toggle value={running} onValueChange={(on) => void toggle(on)} label="Floating orb" disabled={blocked} />
       </View>
+      <Text variant="callout" color="textSecondary">
+        Floats over every app. Tap it to ask Orb about what is on your screen: check whether a message is a scam, look up an
+        address or pay someone. Nothing is read until you tap.
+      </Text>
 
       {blocked ? (
         <View style={styles.notice}>
-          <Feather name="lock" size={14} color={colors.warning} />
+          <Icon name="lock" size={14} color={colors.warning} />
           <Text variant="caption" color="textSecondary" style={styles.flex}>
             {NO_OVERLAY_MESSAGE}
           </Text>
@@ -99,8 +103,8 @@ export function BubbleCard({ status, refresh }: { status: PermissionStatus | nul
       <View style={styles.tips} accessible accessibilityLabel={TIPS.map((t) => t.label).join(', ')}>
         {TIPS.map((tip) => (
           <View key={tip.label} style={styles.tip}>
-            <Feather name={tip.icon} size={13} color={colors.textTertiary} />
-            <Text variant="caption" color="textTertiary" numberOfLines={1}>
+            <Icon name={tip.icon} size={14} color={colors.textSecondary} />
+            <Text variant="captionStrong" color="textSecondary" numberOfLines={1}>
               {tip.label}
             </Text>
           </View>
@@ -119,15 +123,24 @@ const styles = StyleSheet.create({
   preview: {
     width: PREVIEW,
     height: PREVIEW,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primarySoft,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.primarySoftBorder,
+    borderRadius: PREVIEW / 2,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { flex: 1, gap: space.xxs },
-  status: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  text: { flex: 1, gap: space.xs },
+  status: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: space.xs + 2,
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xxs + 1,
+    borderRadius: radius.pill,
+  },
+  statusOn: { backgroundColor: colors.successSoft },
+  statusOff: { backgroundColor: colors.surfaceMuted },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   notice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -136,13 +149,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.warningSoft,
   },
-  tips: {
+  tips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  tip: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: space.sm,
-    paddingTop: space.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    alignItems: 'center',
+    gap: space.xs + 2,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceMuted,
   },
-  tip: { flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 1 },
 });

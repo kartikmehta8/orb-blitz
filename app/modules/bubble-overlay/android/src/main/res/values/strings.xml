@@ -7,5 +7,7 @@
   <string name="bubble_notification_title">Orb is ready</string>
   <string name="bubble_notification_stop">Stop</string>
   <string name="bubble_content_description">Open Orb</string>
+  <string name="agent_channel_name">Agent payment requests</string>
+  <string name="listen_prompt">Say what to pay or ask</string>
   <string name="bubble_stopped_toast">Orb stopped. Open the app to start it again.</string>
 </resources>

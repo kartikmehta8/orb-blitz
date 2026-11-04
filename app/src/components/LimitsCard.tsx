@@ -62,7 +62,7 @@ function LimitSheet({
   return (
     <Sheet visible={visible} onClose={onClose} title={meta.title}>
       <Text variant="callout" color="textSecondary">
-        Payments above this are blocked, whatever the agent proposes. Maximum {LIMIT_DEFAULTS.hardMaxMon} MON on testnet.
+        Payments above this are blocked, whatever the agent proposes. Maximum {LIMIT_DEFAULTS.hardMaxMon} MON. Limits cover mainnet and testnet together.
       </Text>
       <View style={[styles.amountBox, value !== '' && error ? styles.amountBoxError : null]}>
         <TextInput
