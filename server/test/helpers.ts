@@ -4,8 +4,9 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { getAddress, parseEther, TransactionReceiptNotFoundError, type Hex } from 'viem';
 import { vi } from 'vitest';
-import type { ChainClient } from '../src/chain';
+import type { ChainClient, ChainClients } from '../src/chain';
 import type { CreateMessage } from '../src/agent';
+import type { EnsReader } from '../src/intent';
 import type { AgentRequest } from '../src/schemas';
 import type { ToolCtx } from '../src/tools/tool';
 
@@ -37,6 +38,30 @@ export function mockChain(opts: ChainOpts = {}) {
   } as unknown as ChainClient & Record<string, ReturnType<typeof vi.fn>>;
 }
 
+export const ENS_NAME = 'kartik.eth';
+
+/**
+ * ENS stub: `kartik.eth` resolves to RECIPIENT and is its primary name; every other name is unset.
+ * @param names Name to address overrides.
+ * @param primary Address (lowercase) to primary name overrides.
+ * @returns An EnsReader whose methods are vi.fn spies.
+ */
+export function mockEns(names: Record<string, string> = { [ENS_NAME]: RECIPIENT }, primary: Record<string, string> = { [RECIPIENT.toLowerCase()]: ENS_NAME }) {
+  return {
+    getEnsAddress: vi.fn(({ name }: { name: string }) => Promise.resolve(names[name] ?? null)),
+    getEnsName: vi.fn(({ address }: { address: string }) => Promise.resolve(primary[address.toLowerCase()] ?? null)),
+  } as unknown as EnsReader & Record<string, ReturnType<typeof vi.fn>>;
+}
+
+/**
+ * Both Monad networks backed by the same stub settings.
+ * @param opts Overrides, applied to both.
+ * @returns Testnet and mainnet stubs.
+ */
+export function mockChains(opts: ChainOpts = {}) {
+  return { 10143: mockChain(opts), 143: mockChain(opts) } as unknown as ChainClients & Record<number, ChainClient & Record<string, ReturnType<typeof vi.fn>>>;
+}
+
 /**
  * Tool context for direct tool tests.
  * @param over Field overrides.
@@ -44,14 +69,16 @@ export function mockChain(opts: ChainOpts = {}) {
  */
 export function makeCtx(over: Partial<ToolCtx> = {}): ToolCtx {
   return {
-    chain: mockChain(),
+    chains: mockChains(),
+    ens: mockEns(),
     wallet: WALLET,
     perTxMon: '1',
     dailyRemainingMon: '5',
     context: { source: 'screen', appLabel: 'WhatsApp', text: `dinner was 0.2 MON, send to ${RECIPIENT}` },
-    userTexts: ['pay this'],
+    userTexts: ['pay this on testnet'],
     intents: [],
     clarification: null,
+    assessment: null,
     ...over,
   };
 }
@@ -64,7 +91,7 @@ export function makeCtx(over: Partial<ToolCtx> = {}): ToolCtx {
 export function makeRequest(over: Partial<AgentRequest> = {}): AgentRequest {
   return {
     requestId: 't1',
-    messages: [{ role: 'user', text: 'pay this' }],
+    messages: [{ role: 'user', text: 'pay this on testnet' }],
     context: { source: 'screen', appLabel: 'WhatsApp', text: `dinner was 0.2 MON, send to ${RECIPIENT}`, capturedAt: 0 },
     wallet: { address: WALLET, chainId: 10143 },
     limits: { perTxMon: '1', dailyRemainingMon: '5' },

@@ -11,11 +11,11 @@ import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createWalletClient, custom, toHex, type Address, type Hash } from 'viem';
-import { publicClient } from './chain';
-import { monadTestnet } from './config';
+import { clientFor } from './chain';
+import { monadChains } from './config';
 import { approvalMode, readDeviceAuth, type DeviceAuthStatus } from './deviceAuth';
 import { OrbApiError } from './errors';
-import { CHAIN_ID, type Intent } from './intent';
+import { NETWORKS, type ChainId, type Intent } from './intent';
 import { getLimitState } from './limits';
 import { finalizePending, loadPending, savePending, settlePending, type PendingTx } from './pendingTx';
 import { isExecuted, markExecuted } from './storage';
@@ -64,27 +64,37 @@ type IntentExecution = {
 
 const WALLET_TIMEOUT_MS = 10_000;
 const RECEIPT_TIMEOUT_MS = 30_000;
-const RPC_UNREACHABLE: CardCheck = { ok: false, reason: "Couldn't reach Monad testnet. Check your connection.", retryable: true };
-const WRONG_CHAIN: CardCheck = { ok: false, reason: "Couldn't switch your wallet to Monad testnet.", retryable: true };
+const rpcUnreachable = (chainId: ChainId): CardCheck => ({
+  ok: false,
+  reason: `Couldn't reach ${NETWORKS[chainId].name}. Check your connection.`,
+  retryable: true,
+});
+const wrongChain = (chainId: ChainId): CardCheck => ({
+  ok: false,
+  reason: `Couldn't switch your wallet to ${NETWORKS[chainId].name}.`,
+  retryable: true,
+});
 
 /**
  * Wallet client over the Privy provider. `retryCount: 0` so a send is never retried.
  * @param provider Privy embedded wallet EIP-1193 provider.
- * @returns A viem wallet client pinned to Monad testnet.
+ * @param chainId The payment's network.
+ * @returns A viem wallet client pinned to that network.
  */
-const walletClientFor = (provider: PrivyEmbeddedWalletProvider) =>
-  createWalletClient({ chain: monadTestnet, transport: custom(provider, { retryCount: 0 }) });
+const walletClientFor = (provider: PrivyEmbeddedWalletProvider, chainId: ChainId) =>
+  createWalletClient({ chain: monadChains[chainId], transport: custom(provider, { retryCount: 0 }) });
 
 /**
- * Makes sure the wallet is on Monad testnet, switching if needed.
+ * Makes sure the wallet is on the payment's network, switching if needed.
  * @param client Wallet client.
- * @returns True when the wallet ends up on chain 10143.
+ * @param chainId Required chain.
+ * @returns True when the wallet ends up on that chain.
  */
-async function ensureMonadChain(client: ReturnType<typeof walletClientFor>): Promise<boolean> {
+async function ensureChain(client: ReturnType<typeof walletClientFor>, chainId: ChainId): Promise<boolean> {
   try {
-    if ((await client.getChainId()) === CHAIN_ID) return true;
-    await client.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: toHex(CHAIN_ID) }] });
-    return (await client.getChainId()) === CHAIN_ID;
+    if ((await client.getChainId()) === chainId) return true;
+    await client.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: toHex(chainId) }] });
+    return (await client.getChainId()) === chainId;
   } catch {
     return false;
   }
@@ -164,7 +174,7 @@ export function useIntentExecution(
     if (!address) return { ok: false, reason: 'Sign in to Orb first.' };
     try {
       const [balance, limits, executed, pending] = await Promise.all([
-        publicClient.getBalance({ address }),
+        clientFor(intent.chainId).getBalance({ address }),
         getLimitState(),
         isExecuted(intent.id),
         loadPending(),
@@ -180,7 +190,7 @@ export function useIntentExecution(
       });
     } catch (e) {
       if (e instanceof OrbApiError) return { ok: false, reason: e.message, retryable: true };
-      return RPC_UNREACHABLE;
+      return rpcUnreachable(intent.chainId);
     }
   }, [address, intent]);
 
@@ -214,8 +224,8 @@ export function useIntentExecution(
       }
 
       setState({ status: 'signing' });
-      const client = walletClientFor(provider);
-      const fresh = (await ensureMonadChain(client)) ? await runCheck() : WRONG_CHAIN;
+      const client = walletClientFor(provider, intent.chainId);
+      const fresh = (await ensureChain(client, intent.chainId)) ? await runCheck() : wrongChain(intent.chainId);
       setCheck(fresh);
       if (!fresh.ok) {
         setState({ status: 'idle' });
@@ -243,10 +253,12 @@ export function useIntentExecution(
       const tx: PendingTx = {
         hash,
         intentId: intent.id,
+        chainId: intent.chainId,
         to: intent.to,
         amountWei: intent.amountWei,
         sentAt,
         ...(intent.memo ? { memo: intent.memo } : {}),
+        ...(intent.ensName ? { ensName: intent.ensName } : {}),
       };
       txRef.current = tx;
       // Persist before waiting so a dismissed sheet or killed app can resume it.
@@ -254,7 +266,7 @@ export function useIntentExecution(
       setState({ status: 'submitted', hash });
 
       try {
-        const receipt = await publicClient.waitForTransactionReceipt({ hash, pollingInterval: 400, timeout: RECEIPT_TIMEOUT_MS });
+        const receipt = await clientFor(intent.chainId).waitForTransactionReceipt({ hash, pollingInterval: 400, timeout: RECEIPT_TIMEOUT_MS });
         const ms = Date.now() - sentAt;
         await finalizePending(tx, receipt.status).catch(() => undefined);
         if (receipt.status === 'success') {
@@ -281,7 +293,7 @@ export function useIntentExecution(
     busy.current = true;
     setState({ status: 'submitted', hash: tx.hash });
     try {
-      const result = await settlePending(publicClient, tx);
+      const result = await settlePending(clientFor(tx.chainId ?? intent.chainId), tx);
       if (result.kind === 'confirmed') {
         setState({ status: 'confirmed', hash: tx.hash, ms: null });
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -298,7 +310,7 @@ export function useIntentExecution(
     } finally {
       busy.current = false;
     }
-  }, []);
+  }, [intent.chainId]);
 
   return {
     state,

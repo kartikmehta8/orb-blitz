@@ -6,20 +6,24 @@
  * is one slot: new payments are blocked while it is occupied.
  */
 import { TransactionReceiptNotFoundError, type Address, type Hash, type PublicClient } from 'viem';
-import { toChecksumAddress } from './intent';
+import { isChainId, TESTNET_CHAIN_ID, toChecksumAddress, type ChainId } from './intent';
 import { addSpend } from './limits';
 import { OrbApiError } from './errors';
-import { addActivity, addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readStored, removeKey, writeJson } from './storage';
+import { addActivity, addEnsName, addRecipient, isHash, isRecord, isWeiString, KEYS, markExecuted, readStored, removeKey, writeJson } from './storage';
 
 /** A sent, unconfirmed payment. Chain data, plus the intent's display memo when it had one. */
 export type PendingTx = {
   hash: Hash;
   intentId: string;
+  /** Network it was sent on. Missing on payments saved before mainnet support (testnet). */
+  chainId?: ChainId;
   to: Address;
   amountWei: string;
   sentAt: number;
   /** Copied from the intent so a later receipt can store it on the activity row. */
   memo?: string;
+  /** ENS name that was paid, remembered with its address once the payment confirms. */
+  ensName?: string;
 };
 
 /** Result of checking a pending payment against the chain. */
@@ -34,6 +38,7 @@ const isPendingTx = (v: unknown): v is PendingTx =>
   isRecord(v) &&
   isHash(v.hash) &&
   typeof v.intentId === 'string' &&
+  (v.chainId === undefined || isChainId(v.chainId)) &&
   typeof v.to === 'string' &&
   toChecksumAddress(v.to) !== null &&
   isWeiString(v.amountWei) &&
@@ -74,7 +79,12 @@ export async function finalizePending(tx: PendingTx, status: 'success' | 'revert
   await removeKey(KEYS.pending);
   const confirmed = status === 'success';
   if (confirmed) {
-    await Promise.all([addSpend(BigInt(tx.amountWei)), addRecipient(tx.to), markExecuted(tx.intentId)]);
+    await Promise.all([
+      addSpend(BigInt(tx.amountWei)),
+      addRecipient(tx.to),
+      markExecuted(tx.intentId),
+      typeof tx.ensName === 'string' && tx.ensName ? addEnsName(tx.ensName, tx.to) : undefined,
+    ]);
   }
   const memo = typeof tx.memo === 'string' && tx.memo.length > 0 ? tx.memo : undefined;
   await addActivity({
@@ -84,6 +94,8 @@ export async function finalizePending(tx: PendingTx, status: 'success' | 'revert
     status: confirmed ? 'confirmed' : 'failed',
     at: Date.now(),
     ...(memo ? { memo } : {}),
+    ...(tx.chainId ? { chainId: tx.chainId } : {}),
+    ...(typeof tx.ensName === 'string' && tx.ensName ? { ensName: tx.ensName } : {}),
   });
 }
 
@@ -113,10 +125,10 @@ export async function settlePending(
 
 /**
  * Resumes whatever is in the pending slot (tabs layout and Ask mount).
- * @param client Read-only chain access.
+ * @param clientFor Read-only access per network; the payment's own network is used.
  * @returns The slot's status, or `none` when empty.
  */
-export async function checkPending(client: Pick<PublicClient, 'getTransactionReceipt'>): Promise<PendingStatus> {
+export async function checkPending(clientFor: (chainId: ChainId) => Pick<PublicClient, 'getTransactionReceipt'>): Promise<PendingStatus> {
   const tx = await loadPending();
-  return tx ? settlePending(client, tx) : { kind: 'none' };
+  return tx ? settlePending(clientFor(tx.chainId ?? TESTNET_CHAIN_ID), tx) : { kind: 'none' };
 }

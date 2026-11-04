@@ -14,7 +14,7 @@ import { Screen } from '../../src/components/Screen';
 import { Card, ListRow, SectionHeader, Text, type IconName } from '../../src/components/ui';
 import { useCopy } from '../../src/components/useCopy';
 import { addressUrl, config } from '../../src/config';
-import { CHAIN_ID, shortAddress } from '../../src/intent';
+import { NETWORKS, TESTNET_CHAIN_ID, shortAddress } from '../../src/intent';
 import { colors, HIT, radius, space } from '../../src/theme';
 import { useWalletData } from '../../src/walletData';
 
@@ -114,12 +114,12 @@ export default function ProfileScreen() {
       <Group
         title="Network"
         rows={[
-          { icon: 'globe', title: 'Network', subtitle: `Chain ID ${CHAIN_ID}`, badge: <NetworkPill label="Monad Testnet" /> },
+          { icon: 'globe', title: 'Network', subtitle: `Chain ID ${TESTNET_CHAIN_ID}`, badge: <NetworkPill label="Monad Testnet" /> },
           {
             icon: 'search',
             title: 'Explorer',
             subtitle: 'View your wallet on MonadVision',
-            onPress: () => open(address ? addressUrl(address) : config.explorerUrl),
+            onPress: () => open(address ? addressUrl(address) : NETWORKS[TESTNET_CHAIN_ID].explorerUrl),
           },
           { icon: 'droplet', title: 'Faucet', subtitle: 'Get free testnet MON', onPress: () => open(config.faucetUrl) },
         ]}

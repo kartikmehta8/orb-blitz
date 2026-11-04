@@ -35,7 +35,7 @@ function entry<S extends z.ZodObject>(tool: Tool<S>): Entry {
         return await tool.run(ctx, parsed.data);
       } catch (e) {
         const msg = (e instanceof Error ? e.message : String(e)).split('\n')[0];
-        return toolError('RPC_ERROR', `Couldn't reach Monad testnet: ${msg.slice(0, 120)}`);
+        return toolError('RPC_ERROR', `Couldn't reach the network: ${msg.slice(0, 120)}`);
       }
     },
   };

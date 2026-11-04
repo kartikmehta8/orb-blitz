@@ -6,11 +6,20 @@ import { LABEL_RADIUS, parseFallback } from '../src/fallbackParser';
 import { OTHER, RECIPIENT } from './helpers';
 
 const parse = (contextText: string | null, ...userTexts: string[]) =>
-  parseFallback({ contextText, userTexts: userTexts.length ? userTexts : ['pay this'], perTxMon: '1' });
+  parseFallback({ contextText, userTexts: userTexts.length ? userTexts : ['pay this on testnet'], perTxMon: '1' });
 
 describe('parseFallback', () => {
+  it('asks for the network when the user has not named one', () => {
+    expect(parse(`dinner was 2 MON, send to ${RECIPIENT}`, 'pay this')).toEqual({
+      kind: 'clarify',
+      question: 'Monad mainnet (real MON) or testnet?',
+      options: ['Mainnet', 'Testnet'],
+    });
+    expect(parse(`2 MON to ${RECIPIENT}`, 'pay this', 'Mainnet')).toMatchObject({ kind: 'candidate', chainId: 143 });
+  });
+
   it('1 address + 1 amount → candidate', () => {
-    expect(parse(`dinner was 2 MON, send to ${RECIPIENT}`)).toEqual({ kind: 'candidate', to: RECIPIENT, amountMon: '2' });
+    expect(parse(`dinner was 2 MON, send to ${RECIPIENT}`)).toEqual({ kind: 'candidate', chainId: 10143, to: RECIPIENT, amountMon: '2' });
   });
 
   it('no payment request from the user → never a candidate (screen alone cannot trigger a payment)', () => {
@@ -20,14 +29,14 @@ describe('parseFallback', () => {
 
   it('2 addresses → clarification with both options', () => {
     const r = parse(`2 MON to ${RECIPIENT} or ${OTHER}`);
-    expect(r).toEqual({ kind: 'clarify', question: 'I see 2 addresses. Which one?', options: [RECIPIENT, OTHER] });
+    expect(r).toEqual({ kind: 'clarify', question: 'I see 2 recipients. Which one?', options: [RECIPIENT, OTHER] });
   });
 
   it('labels an address with the name on the same line', () => {
     const r = parse(`Rahul ${RECIPIENT}\nPriya ${OTHER}`);
     expect(r).toEqual({
       kind: 'clarify',
-      question: 'I see 2 addresses. Which one?',
+      question: 'I see 2 recipients. Which one?',
       options: [RECIPIENT, OTHER],
       labels: ['Rahul', 'Priya'],
     });
@@ -37,7 +46,7 @@ describe('parseFallback', () => {
     const r = parse(`Rahul\n${RECIPIENT}\n${OTHER}`);
     expect(r).toEqual({
       kind: 'clarify',
-      question: 'I see 2 addresses. Which one?',
+      question: 'I see 2 recipients. Which one?',
       options: [RECIPIENT, OTHER],
     });
     expect(r).not.toHaveProperty('labels');
@@ -75,7 +84,7 @@ describe('parseFallback', () => {
   });
 
   it.each(['2.5', '0.000000000000000001'])('%s MON is a valid amount', (amount) => {
-    expect(parse(`${amount} MON to ${RECIPIENT}`)).toEqual({ kind: 'candidate', to: RECIPIENT, amountMon: amount });
+    expect(parse(`${amount} MON to ${RECIPIENT}`)).toEqual({ kind: 'candidate', chainId: 10143, to: RECIPIENT, amountMon: amount });
   });
 
   it('19 decimals → no amount match', () => {
@@ -84,17 +93,17 @@ describe('parseFallback', () => {
 
   it('uppercase hex address is matched', () => {
     const upper = `0x${RECIPIENT.slice(2).toUpperCase()}`;
-    expect(parse(`1 MON to ${upper}`)).toEqual({ kind: 'candidate', to: upper, amountMon: '1' });
+    expect(parse(`1 MON to ${upper}`)).toEqual({ kind: 'candidate', chainId: 10143, to: upper, amountMon: '1' });
   });
 
   it('zero-width character inside the address is stripped', () => {
     const split = `${RECIPIENT.slice(0, 20)}​${RECIPIENT.slice(20)}`;
-    expect(parse(`1 MON to ${split}`)).toEqual({ kind: 'candidate', to: RECIPIENT, amountMon: '1' });
+    expect(parse(`1 MON to ${split}`)).toEqual({ kind: 'candidate', chainId: 10143, to: RECIPIENT, amountMon: '1' });
   });
 
   it('a tapped chip in the newest user message resolves screen ambiguity', () => {
-    const r = parse(`2 MON to ${RECIPIENT} or ${OTHER}`, 'pay this', OTHER);
-    expect(r).toEqual({ kind: 'candidate', to: OTHER, amountMon: '2' });
+    const r = parse(`2 MON to ${RECIPIENT} or ${OTHER}`, 'pay this on testnet', OTHER);
+    expect(r).toEqual({ kind: 'candidate', chainId: 10143, to: OTHER, amountMon: '2' });
   });
 
   it('no address → asks for one', () => {

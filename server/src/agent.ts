@@ -7,10 +7,11 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { randomUUID } from 'node:crypto';
-import type { ChainClient } from './chain';
 import { parseFallback } from './fallbackParser';
-import { isTransferError, prepareTransfer, shortAddress, type Intent } from './intent';
+import type { ChainClients } from './chain';
+import { isTransferError, NETWORKS, prepareTransfer, shortAddress, type EnsReader, type Intent } from './intent';
 import { buildMessages, SYSTEM_PROMPT } from './prompt';
+import { screenAssessment } from './risk';
 import type { AgentRequest, AgentResponse, Clarification } from './schemas';
 import { runTool, TOOL_DEFS } from './tools/index';
 import { errorCode, type ToolCtx } from './tools/tool';
@@ -32,7 +33,10 @@ export type CreateMessage = (
 export type AgentDeps = {
   /** Null when no API key is configured: every request uses the fallback parser. */
   createMessage: CreateMessage | null;
-  chain: ChainClient;
+  /** Monad testnet and mainnet. */
+  chains: ChainClients;
+  /** Ethereum mainnet ENS reads. */
+  ens: EnsReader;
   model: string;
   /** Overall request deadline; defaults to 25 s. */
   deadlineMs?: number;
@@ -74,7 +78,8 @@ export function clampReply(text: string): string {
 export async function runAgent(req: AgentRequest, deps: AgentDeps): Promise<AgentOutcome> {
   const started = Date.now();
   const ctx: ToolCtx = {
-    chain: deps.chain,
+    chains: deps.chains,
+    ens: deps.ens,
     wallet: req.wallet.address,
     perTxMon: req.limits.perTxMon,
     dailyRemainingMon: req.limits.dailyRemainingMon,
@@ -82,6 +87,7 @@ export async function runAgent(req: AgentRequest, deps: AgentDeps): Promise<Agen
     userTexts: req.messages.filter((m) => m.role === 'user').map((m) => m.text),
     intents: [],
     clarification: null,
+    assessment: null,
   };
   const toolCalls: string[] = [];
   const errorCodes: string[] = [];
@@ -100,6 +106,12 @@ export async function runAgent(req: AgentRequest, deps: AgentDeps): Promise<Agen
       reply: clampReply(answer.reply),
       intents: answer.intents,
       clarification: answer.clarification,
+      assessment: screenAssessment({
+        contextText: req.context?.text ?? null,
+        lastUserText: ctx.userTexts[ctx.userTexts.length - 1] ?? '',
+        reported: ctx.assessment,
+        hasIntents: answer.intents.length > 0,
+      }),
       meta: { model: deps.model, toolCalls, ms: Date.now() - started, fallback: answer.fallback },
     },
     errorCodes,
@@ -191,8 +203,9 @@ async function runFallback(req: AgentRequest, ctx: ToolCtx, errorCodes: string[]
     };
     return { reply: parsed.question, intents: [], clarification, fallback: true };
   }
-  const result = await prepareTransfer(ctx.chain, {
+  const result = await prepareTransfer(ctx.chains[parsed.chainId], {
     id: randomUUID(),
+    chainId: parsed.chainId,
     to: parsed.to,
     amountMon: parsed.amountMon,
     wallet: ctx.wallet,
@@ -202,12 +215,12 @@ async function runFallback(req: AgentRequest, ctx: ToolCtx, errorCodes: string[]
     userTexts: ctx.userTexts,
     parsedBy: 'fallback',
     memo: parsed.memo,
-  });
+  }, ctx.ens);
   if (isTransferError(result)) {
     errorCodes.push(result.error);
     return { reply: result.message, intents: [], clarification: null, fallback: true };
   }
-  const reply = `Using the basic parser: ${result.amountDisplay} to ${shortAddress(result.to)} is ready to confirm.`;
+  const reply = `Using the basic parser: ${result.amountDisplay} on ${NETWORKS[result.chainId].name} to ${result.ensName ?? shortAddress(result.to)} is ready to confirm.`;
   return { reply, intents: [result], clarification: null, fallback: true };
 }
 

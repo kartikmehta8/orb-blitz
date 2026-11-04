@@ -173,8 +173,7 @@ export type ScreenContextInput = { source: ContextSource; appLabel: string; text
 type TransferRequest = {
   id: string;
   /** Network to pay on. `client` must be connected to this chain. */
-  /** Omitted by older callers, which only know testnet. */
-  chainId?: ChainId;
+  chainId: ChainId;
   to: string;
   amountMon: string;
   wallet: Address;
@@ -451,7 +450,7 @@ export async function prepareTransfer(
     return {
       id: req.id,
       type: 'native_transfer',
-      chainId: (req.chainId ?? TESTNET_CHAIN_ID),
+      chainId: req.chainId,
       to,
       ...(ensName ? { ensName } : {}),
       ...(primaryName ? { primaryName } : {}),
@@ -469,7 +468,7 @@ export async function prepareTransfer(
       ...(memo ? { memo } : {}),
     };
   } catch (e) {
-    return fail('RPC_ERROR', `Couldn't reach ${NETWORKS[(req.chainId ?? TESTNET_CHAIN_ID)].name}: ${(e as Error).message.split('\n')[0].slice(0, 120)}`);
+    return fail('RPC_ERROR', `Couldn't reach ${NETWORKS[req.chainId].name}: ${(e as Error).message.split('\n')[0].slice(0, 120)}`);
   }
 }
 
@@ -480,12 +479,4 @@ export async function prepareTransfer(
  */
 export function isTransferError(r: Intent | TransferError): r is TransferError {
   return 'error' in r;
-}
-
-/** Old names, so the testnet-only callers keep compiling. */
-export const CHAIN_ID = TESTNET_CHAIN_ID;
-export const MONAD_TESTNET_RPC_URL = NETWORKS[TESTNET_CHAIN_ID].rpcUrl;
-export const MONAD_TESTNET_EXPLORER_URL = NETWORKS[TESTNET_CHAIN_ID].explorerUrl;
-export function monadTestnetChain(rpcUrl: string, explorerUrl: string): Chain {
-  return monadChain(TESTNET_CHAIN_ID, rpcUrl, explorerUrl);
 }

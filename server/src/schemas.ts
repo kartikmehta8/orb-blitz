@@ -4,7 +4,10 @@
  */
 import { z } from 'zod';
 import { MAX_LABEL_CHARS } from './fallbackParser';
-import { CHAIN_ID, toChecksumAddress, type Intent } from './intent';
+import { MAINNET_CHAIN_ID, TESTNET_CHAIN_ID, toChecksumAddress, type Intent } from './intent';
+
+const ChainIdSchema = z.union([z.literal(TESTNET_CHAIN_ID), z.literal(MAINNET_CHAIN_ID)]);
+import { RISK_LEVELS, RISK_SIGNALS } from './risk';
 
 /** Max characters of captured screen/clipboard text (the app truncates at 4000). */
 const MAX_CONTEXT_CHARS = 4000;
@@ -42,7 +45,8 @@ export const AgentRequestSchema = z.object({
       capturedAt: z.number(),
     })
     .nullable(),
-  wallet: z.object({ address: WalletAddress, chainId: z.literal(CHAIN_ID) }),
+  /** `chainId` is the network the wallet screen shows. It never picks a payment's network. */
+  wallet: z.object({ address: WalletAddress, chainId: ChainIdSchema }),
   limits: z.object({ perTxMon: MonDecimal, dailyRemainingMon: MonDecimal }),
 });
 
@@ -55,21 +59,27 @@ const IntentWarningSchema = z.enum([
   'AMOUNT_NOT_IN_CONTEXT',
   'PARSED_WITHOUT_AI',
   'CLOSE_TO_DAILY_LIMIT',
+  'LOOKALIKE_RECIPIENT',
+  'ENS_NOT_PRIMARY',
+  'ENS_ADDRESS_CHANGED',
+  'ENS_UNUSUAL_CHARACTERS',
 ]);
 
 /** Mirrors the shared `Intent` type; the annotation fails to compile if they drift. */
 const IntentSchema: z.ZodType<Intent> = z.object({
   id: z.string(),
   type: z.literal('native_transfer'),
-  chainId: z.literal(CHAIN_ID),
+  chainId: ChainIdSchema,
   to: z.templateLiteral(['0x', z.string()]),
+  ensName: z.string().max(255).optional(),
+  primaryName: z.string().max(255).optional(),
   amountWei: z.string(),
   amountDisplay: z.string(),
   gasLimit: z.string(),
   maxFeePerGasWei: z.string(),
   estFeeDisplay: z.string(),
   provenance: z.object({
-    source: z.enum(['screen', 'clipboard', 'user', 'both']),
+    source: z.enum(['screen', 'clipboard', 'agent', 'user', 'both']),
     appLabel: z.string().optional(),
   }),
   recipientIsContract: z.boolean(),
@@ -109,6 +119,8 @@ export const AgentResponseSchema = z.object({
   reply: z.string(),
   intents: z.array(IntentSchema),
   clarification: ClarificationSchema.nullable(),
+  /** Scam Shield verdict on the screen, or null when nobody asked and nothing looked wrong. */
+  assessment: z.object({ level: z.enum(RISK_LEVELS), signals: z.array(z.enum(RISK_SIGNALS)) }).nullable(),
   meta: z.object({ model: z.string(), toolCalls: z.array(z.string()), ms: z.number(), fallback: z.boolean() }),
 });
 

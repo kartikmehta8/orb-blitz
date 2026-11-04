@@ -1,12 +1,13 @@
 /**
  * @file Local intent checks run before Confirm is enabled and again right
- * before signing, plus the local `NEW_RECIPIENT` flag.
+ * before signing, plus the device-only recipient warnings (new, lookalike,
+ * changed ENS name) that need this phone's payment history.
  *
  * Pure: the caller fetches balance, limits and the executed flag. The wallet's
  * live chain check needs the provider, so it lives in `execute.ts`.
  */
 import { formatEther, zeroAddress } from 'viem';
-import { CHAIN_ID, formatMon, toChecksumAddress, type Intent } from './intent';
+import { formatMon, isChainId, toChecksumAddress, type Intent } from './intent';
 
 /** Fresh device state the checks run against. */
 type CheckInput = {
@@ -52,7 +53,7 @@ const fail = (reason: string): IntentCheck => ({ ok: false, reason });
  * @returns ok, or the first failing reason.
  */
 export function validateIntent(intent: Intent, input: CheckInput): IntentCheck {
-  if (intent.chainId !== CHAIN_ID) return fail('Wrong network. Orb only sends on Monad testnet.');
+  if (!isChainId(intent.chainId)) return fail('Wrong network. Orb only sends on Monad mainnet or testnet.');
 
   const to = toChecksumAddress(intent.to);
   if (!to || to !== intent.to) return fail('That is not a valid 0x address.');
@@ -76,16 +77,13 @@ export function validateIntent(intent: Intent, input: CheckInput): IntentCheck {
 }
 
 /**
- * Adds `NEW_RECIPIENT` when the address has never been paid from this device.
- * @param intent Intent to annotate.
- * @param known Lowercased addresses from `recipients:v1`.
- * @returns The same intent, or a copy with the warning first.
+ * Address poisoning check: same first 4 and last 4 hex characters, different address.
+ * Scammers mint addresses like this and plant them in your history.
+ * ponytail: 4+4 chars; a random match is about 1 in 4 billion per pair.
+ * @param a Any 0x address.
+ * @param b Any 0x address.
+ * @returns True when they look alike but are not the same.
  */
-export function withNewRecipient(intent: Intent, known: Set<string>): Intent {
-  if (known.has(intent.to.toLowerCase()) || intent.warnings.includes('NEW_RECIPIENT')) return intent;
-  return { ...intent, warnings: ['NEW_RECIPIENT', ...intent.warnings] };
-}
-
 export function isLookalike(a: string, b: string): boolean {
   const x = a.toLowerCase();
   const y = b.toLowerCase();

@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { createApp, type AppDeps } from '../src/index';
 import { AgentResponseSchema } from '../src/schemas';
-import { mockChain, OTHER, RECIPIENT, WALLET } from './helpers';
+import { mockChains, mockEns, OTHER, RECIPIENT, WALLET } from './helpers';
 
 const TOKEN = 'test-token';
 
@@ -14,7 +14,7 @@ function setup(over: Partial<AppDeps> = {}) {
   const app = createApp({
     auth: { mode: 'token', agentToken: TOKEN },
     model: 'test-model',
-    chain: mockChain(),
+    chains: mockChains(), ens: mockEns(),
     createMessage: null,
     now: () => clock,
     log: (l) => logs.push(l),
@@ -25,7 +25,7 @@ function setup(over: Partial<AppDeps> = {}) {
 
 const body = (over: Record<string, unknown> = {}) => ({
   requestId: 't1',
-  messages: [{ role: 'user', text: 'pay this' }],
+  messages: [{ role: 'user', text: 'pay this on testnet' }],
   context: { source: 'screen', appLabel: 'WhatsApp', text: `dinner was 0.2 MON, send to ${RECIPIENT}`, capturedAt: 0 },
   wallet: { address: WALLET.toLowerCase(), chainId: 10143 },
   limits: { perTxMon: '1', dailyRemainingMon: '5' },
@@ -40,10 +40,10 @@ const post = (app: ReturnType<typeof setup>['app'], payload: unknown, token: str
   });
 
 describe('server', () => {
-  it('GET /health → ok, chainId, model', async () => {
+  it('GET /health → ok, chain ids, model', async () => {
     const res = await setup().app.request('/health');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, chainId: 10143, model: 'test-model' });
+    expect(await res.json()).toEqual({ ok: true, chainIds: [10143, 143], model: 'test-model' });
   });
 
   it.each([null, 'wrong', `${TOKEN}x`, ''])('token %j → 401, logged', async (token) => {
