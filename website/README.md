@@ -18,6 +18,13 @@ Edit HTML, shared styles and static assets in `public/`, and React interactions 
 
 Import `kartikmehta8/orb`, choose Root Directory **website**, and use the checked-in `vercel.json`: Other framework, `npm ci`, `npm run verify`, output **dist**. The production branch is **main**. Current public deployment: https://orb-website-lovat.vercel.app. GitHub Actions also runs the website check on pull requests and main pushes that change this folder.
 
+In the dashboard (Settings → Build & Deployment), check:
+
+- **Root Directory** is `website`. At the repository root Vercel never reads `website/vercel.json`.
+- **Framework Preset** is Other. A Next.js preset fails with `Cannot read properties of undefined (reading 'fsPath')`, because this is not a Next.js app.
+- Build, Output and Install Command overrides are off, so `vercel.json` applies.
+- **Node.js Version** is 22.x, matching `engines`.
+
 For CLI deployment, link from the repository root, then deploy:
 
 ```sh
