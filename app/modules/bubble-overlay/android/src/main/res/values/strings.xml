@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- User-visible strings for the bubble-overlay module. The product name is Orb. -->
+<resources>
+  <string name="screen_reader_label">Orb screen reader</string>
+  <string name="screen_reader_description">Reads the text on your screen only at the moment you tap the orb, so the agent can see what you\'re looking at. Nothing is read in the background.</string>
+  <string name="bubble_channel_name">Orb</string>
+  <string name="bubble_notification_title">Orb is ready</string>
+  <string name="bubble_notification_stop">Stop</string>
+  <string name="bubble_content_description">Open Orb</string>
+  <string name="bubble_stopped_toast">Orb stopped. Open the app to start it again.</string>
+</resources>
