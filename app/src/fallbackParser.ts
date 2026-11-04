@@ -6,13 +6,17 @@
  * `server/test/shared.test.ts` fails if they drift.
  *
  * It only acts when a user message asks to pay (pay/send/transfer…), and only
- * extracts `0x` addresses and "<n> MON" amounts. A single address and a single
+ * extracts `0x` addresses, `.eth` names and "<n> MON" amounts. A single address and a single
  * amount yield a candidate; anything else yields a clarification. The
  * caller must still run `prepareTransfer`, so the parser itself grants nothing.
  */
-import { parseMon, sanitizeMemo, shortAddress, stripZeroWidth } from './intent';
+import { networkMentioned, parseMon, sanitizeMemo, stripZeroWidth, type ChainId } from './intent';
 
-const ADDRESS = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])/g;
+/** Chips for "which network?". Tapping one sends the word back, which `networkMentioned` reads. */
+export const NETWORK_OPTIONS = ['Mainnet', 'Testnet'] as const;
+
+/** A 0x address or an ASCII `.eth` name. ponytail: non-ASCII names only through the agent. */
+const RECIPIENT = /0x[a-fA-F0-9]{40}(?![a-fA-F0-9])|\b(?:[a-z0-9-]+\.)+eth(?![a-z0-9-])/gi;
 // Leading guard instead of a lookbehind so "0.0000000000000000001 MON" can't match its tail.
 const AMOUNT = /(?:^|[^\d.])(\d+(?:\.\d{1,18})?)\s*(?:MON|mon|Mon)\b/g;
 const FIAT = /[₹$]|\b(?:INR|USD|rs\.?|rupees?|dollars?)\b/i;
@@ -167,7 +171,7 @@ const PAY_REQUEST = /\b(?:pay|send|transfer|tip|split|settle|give|refund)\b/i;
 
 /** A transfer candidate (still unvalidated) or a question with tappable options. */
 type FallbackResult =
-  | { kind: 'candidate'; to: string; amountMon: string; memo?: string }
+  | { kind: 'candidate'; chainId: ChainId; to: string; amountMon: string; memo?: string }
   | { kind: 'clarify'; question: string; options: string[]; labels?: (string | null)[] };
 
 /**
@@ -207,13 +211,13 @@ type FallbackInput = {
 };
 
 /**
- * Unique addresses in a text, compared case-insensitively, first spelling kept.
+ * Unique addresses and ENS names in a text, compared case-insensitively, first spelling kept.
  * @param text Source text (zero-width characters already stripped).
- * @returns Addresses in order of appearance.
+ * @returns Recipients in order of appearance.
  */
 function extractAddresses(text: string): string[] {
   const seen = new Map<string, string>();
-  for (const a of text.match(ADDRESS) ?? []) if (!seen.has(a.toLowerCase())) seen.set(a.toLowerCase(), a);
+  for (const a of text.match(RECIPIENT) ?? []) if (!seen.has(a.toLowerCase())) seen.set(a.toLowerCase(), a);
   return [...seen.values()];
 }
 
@@ -262,14 +266,14 @@ export function parseFallback(input: FallbackInput): FallbackResult {
   const amounts = pick(extractAmounts, users, context);
 
   if (addresses.length === 0) {
-    return { kind: 'clarify', question: 'I need a 0x address. Copy it and tap "Use clipboard".', options: [] };
+    return { kind: 'clarify', question: 'I need a 0x address or ENS name. Copy it and tap "Use clipboard".', options: [] };
   }
   if (addresses.length > 1) {
     const options = addresses.slice(0, 4);
     const labels = labelsForOptions(options, [context ?? '', ...users]);
     return {
       kind: 'clarify',
-      question: `I see ${addresses.length} addresses. Which one?`,
+      question: `I see ${addresses.length} recipients. Which one?`,
       options,
       ...labelField(labels),
     };
@@ -287,14 +291,9 @@ export function parseFallback(input: FallbackInput): FallbackResult {
     };
   }
   const memo = findMemo(users, context);
-  return { kind: 'candidate', to: addresses[0], amountMon: amounts[0], ...(memo ? { memo } : {}) };
-}
-
-/**
- * Label for a clarification chip: addresses are shortened, other options shown as-is.
- * @param option Option value sent back as the user's message when tapped.
- * @returns Display label.
- */
-export function chipLabel(option: string): string {
-  return /^0x[a-fA-F0-9]{40}$/.test(option) ? shortAddress(option) : option;
+  const chainId = networkMentioned(users);
+  if (!chainId) {
+    return { kind: 'clarify', question: 'Monad mainnet (real MON) or testnet?', options: [...NETWORK_OPTIONS] };
+  }
+  return { kind: 'candidate', chainId, to: addresses[0], amountMon: amounts[0], ...(memo ? { memo } : {}) };
 }
